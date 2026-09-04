@@ -1,54 +1,25 @@
 {% extends "base.html" %}
 {% block title %}Dashboard{% endblock %}
-
 {% block body %}
-<div class="dashboard">
-
-    <header class="topbar">
-
-        <div class="topbar-brand">
-            <div class="small-logo">R</div>
-            <strong>Render App</strong>
-        </div>
-
-        <div class="user-menu">
-            <span>{{ user.nickname }}</span>
-            <a href="{{ url_for('logout') }}">
-                Гарах
-            </a>
-        </div>
-
-    </header>
-
-    <main class="dashboard-content">
-
-        <div class="welcome-card">
-
-            <h1>
-                Тавтай морил, {{ user.nickname }} 👋
-            </h1>
-
-            <p>
-                Та системд амжилттай нэвтэрлээ.
-            </p>
-
-            <div class="profile-list">
-
-                <div class="info-row">
-                    <span>Nickname</span>
-                    <strong>{{ user.nickname }}</strong>
-                </div>
-
-                <div class="info-row">
-                    <span>Утас</span>
-                    <strong>+976 {{ user.phone }}</strong>
-                </div>
-
-            </div>
-
-        </div>
-
-    </main>
-
-</div>
+<header>
+  <b>Render App</b>
+  <nav><a href="{{url_for('profile')}}">Profile</a><a href="{{url_for('logout')}}">Гарах</a></nav>
+</header>
+<main>
+  <div class="card">
+    <div class="user-head">
+      {% if user.profile_image_url %}
+        <img class="avatar" src="{{user.profile_image_url}}">
+      {% else %}
+        <div class="avatar fallback">{{user.nickname[:1]|upper}}</div>
+      {% endif %}
+      <div><h1>{{user.nickname}}</h1><p>+976 {{display_phone(user.phone)}}</p></div>
+    </div>
+    <div class="rows">
+      <div><span>Email</span><b>{{user.email or "Оруулаагүй"}}</b></div>
+      <div><span>Төрсөн огноо</span><b>{{user.birthdate or "Оруулаагүй"}}</b></div>
+    </div>
+    <a class="btnlink" href="{{url_for('profile')}}">Profile засах</a>
+  </div>
+</main>
 {% endblock %}

@@ -1,90 +1,47 @@
-# Render Flask + MongoDB Login
+# Flask MongoDB + Cloudinary Profile
 
-## User fields
-
-MongoDB `users` collection:
-
-```json
-{
-  "_id": "...",
-  "phone": "+97699112233",
-  "nickname": "Yagaa",
-  "password_hash": "..."
-}
-```
-
-There is no username or email.
-
-## Registration
-
-URL:
-
-```text
-/register
-```
-
-Fields:
-
+Registration:
 - phone
 - nickname
 - password
-- confirm password
 
-## Login
+After login, `/profile` allows:
+- profile image
+- nickname
+- email
+- birthdate
+- bio
 
-URL:
+Image is stored on Cloudinary. MongoDB stores only the image URL/public id.
 
-```text
-/login
+## .env
+
+```env
+SECRET_KEY=my-secret
+MONGO_URI=mongodb+srv://USER:PASSWORD@CLUSTER.mongodb.net/render_server?retryWrites=true&w=majority
+CLOUDINARY_URL=cloudinary://API_KEY:API_SECRET@CLOUD_NAME
 ```
 
-Fields:
-
-- phone
-- password
-
-## MongoDB
-
-Set this environment variable in Render:
-
-```text
-MONGO_URI=mongodb+srv://USERNAME:PASSWORD@CLUSTER.mongodb.net/render_server?retryWrites=true&w=majority
-```
-
-Also add:
-
-```text
-SECRET_KEY=<random-long-secret>
-```
-
-If `render.yaml` is used, SECRET_KEY can be generated automatically.
-
-## Render
-
-Build:
-
-```text
-pip install -r requirements.txt
-```
-
-Start:
-
-```text
-gunicorn app:app
-```
-
-Health:
-
-```text
-/health
-```
-
-## Git push
+## Local
 
 ```bat
 cd C:\Users\myagmardorj\Documents\render_server
+python -m pip install -r requirements.txt
+python app.py
+```
 
+## Render Environment
+
+Add:
+- MONGO_URI
+- CLOUDINARY_URL
+- SECRET_KEY
+
+## Push
+
+```bat
+cd C:\Users\myagmardorj\Documents\render_server
 git add .
-git commit -m "Use MongoDB phone authentication"
+git commit -m "Add editable profile and Cloudinary image upload"
 git push origin main
 ```

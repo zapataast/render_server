@@ -1,65 +1,16 @@
 {% extends "base.html" %}
 {% block title %}Нэвтрэх{% endblock %}
-
 {% block body %}
-<div class="auth-page">
-    <div class="auth-card">
-
-        <div class="brand">
-            <div class="brand-logo">R</div>
-            <h1>Нэвтрэх</h1>
-            <p>Утасны дугаараараа нэвтэрнэ үү</p>
-        </div>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% for category, message in messages %}
-                <div class="alert {{ category }}">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        {% endwith %}
-
-        <form method="post" class="auth-form">
-
-            <label for="phone">Утасны дугаар</label>
-
-            <div class="phone-input">
-                <span>+976</span>
-                <input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    inputmode="numeric"
-                    maxlength="8"
-                    value="{{ phone or '' }}"
-                    placeholder="99112233"
-                    autocomplete="tel"
-                    required
-                >
-            </div>
-
-            <label for="password">Нууц үг</label>
-            <input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                autocomplete="current-password"
-                required
-            >
-
-            <button type="submit" class="primary-btn">
-                Нэвтрэх
-            </button>
-        </form>
-
-        <div class="auth-footer">
-            <span>Бүртгэлгүй юу?</span>
-            <a href="{{ url_for('register') }}">
-                Бүртгүүлэх
-            </a>
-        </div>
-
-    </div>
-</div>
+<div class="center"><div class="card auth">
+  <h1>Нэвтрэх</h1><p>Утасны дугаараараа нэвтэрнэ үү</p>
+  {% with messages=get_flashed_messages(with_categories=true) %}
+    {% for c,m in messages %}<div class="alert {{c}}">{{m}}</div>{% endfor %}
+  {% endwith %}
+  <form method="post">
+    <label>Утас</label><div class="phone"><span>+976</span><input name="phone" value="{{phone or ''}}" maxlength="8" required></div>
+    <label>Нууц үг</label><input type="password" name="password" required>
+    <button>Нэвтрэх</button>
+  </form>
+  <p class="foot">Бүртгэлгүй юу? <a href="{{url_for('register')}}">Бүртгүүлэх</a></p>
+</div></div>
 {% endblock %}

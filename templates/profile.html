@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Profile{% endblock %}
+{% block body %}
+<header>
+  <b>Render App</b>
+  <nav><a href="{{url_for('dashboard')}}">Dashboard</a><a href="{{url_for('logout')}}">Гарах</a></nav>
+</header>
+<main>
+  {% with messages=get_flashed_messages(with_categories=true) %}
+    {% for c,m in messages %}<div class="alert {{c}}">{{m}}</div>{% endfor %}
+  {% endwith %}
+  <div class="grid">
+    <section class="card profile-photo">
+      <h2>Profile зураг</h2>
+      {% if user.profile_image_url %}
+        <img class="big-avatar" src="{{user.profile_image_url}}">
+      {% else %}
+        <div class="big-avatar fallback">{{user.nickname[:1]|upper}}</div>
+      {% endif %}
+      <form action="{{url_for('upload_profile_image')}}" method="post" enctype="multipart/form-data">
+        <input id="img" type="file" name="profile_image" accept=".jpg,.jpeg,.png,.webp" hidden onchange="this.form.submit()">
+        <label class="filebtn" for="img">Зураг сонгох</label>
+      </form>
+      {% if user.profile_image_url %}
+      <form action="{{url_for('remove_profile_image')}}" method="post">
+        <button class="danger">Зураг устгах</button>
+      </form>
+      {% endif %}
+      <small>JPG, PNG, WEBP · max 5MB</small>
+    </section>
+
+    <section class="card">
+      <h2>Хувийн мэдээлэл</h2>
+      <form method="post">
+        <label>Утас</label><div class="readonly">+976 {{display_phone(user.phone)}}</div>
+        <label>Nickname</label><input name="nickname" value="{{user.nickname}}" maxlength="50" required>
+        <label>Email</label><input type="email" name="email" value="{{user.email or ''}}" placeholder="name@example.com">
+        <label>Төрсөн огноо</label><input type="date" name="birthdate" value="{{user.birthdate or ''}}">
+        <label>Bio</label><textarea name="bio" maxlength="500" rows="5">{{user.bio or ''}}</textarea>
+        <button>Хадгалах</button>
+      </form>
+    </section>
+  </div>
+</main>
+{% endblock %}

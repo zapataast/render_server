@@ -1,8 +1,5 @@
 __pycache__/
 *.py[cod]
-*.log
 .env
 .venv/
 venv/
-.idea/
-.vscode/
