@@ -18,7 +18,22 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "change-me")
 app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://localhost:27017/render_server")
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
+PROFILE_IMAGE_SCALE = int(
+    os.getenv("PROFILE_IMAGE_SCALE", "100")
+)
 
+PROFILE_IMAGE_CROP = os.getenv(
+    "PROFILE_IMAGE_CROP",
+    "fit"
+)
+PROFILE_IMAGE_QUALITY = os.getenv(
+    "PROFILE_IMAGE_QUALITY"
+)
+@app.context_processor
+def inject_profile_settings():
+    return {
+        "PROFILE_IMAGE_SCALE": PROFILE_IMAGE_SCALE
+    }
 mongo = PyMongo(app)
 
 if os.getenv("CLOUDINARY_URL"):
@@ -226,8 +241,8 @@ def upload_profile_image():
             overwrite=True,
             invalidate=True,
             transformation=[
-                {"width": 600, "height": 600, "crop": "fill", "gravity": "face"},
-                {"quality": "auto", "fetch_format": "auto"},
+                {"width": 800, "height": 800, "crop": "fill", "gravity": "face"},
+                {"quality": PROFILE_IMAGE_QUALITY, "fetch_format": "auto"},
             ],
         )
 

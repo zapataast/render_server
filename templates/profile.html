@@ -13,9 +13,11 @@
     <section class="card profile-photo">
       <h2>Profile зураг</h2>
       {% if user.profile_image_url %}
-        <img class="big-avatar" src="{{user.profile_image_url}}">
+        <img class="big-avatar" src="{{user.profile_image_url}}" style="--profile-scale: {{ PROFILE_IMAGE_SCALE }};"> 
       {% else %}
-        <div class="big-avatar fallback">{{user.nickname[:1]|upper}}</div>
+        <div class="big-avatar fallback"
+        style="--profile-scale: {{ PROFILE_IMAGE_SCALE }};"
+        >{{user.nickname[:1]|upper}}</div>
       {% endif %}
       <form action="{{url_for('upload_profile_image')}}" method="post" enctype="multipart/form-data">
         <input id="img" type="file" name="profile_image" accept=".jpg,.jpeg,.png,.webp" hidden onchange="this.form.submit()">
