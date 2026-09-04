@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Бүртгүүлэх{% endblock %}
+
+{% block body %}
+<div class="auth-page">
+    <div class="auth-card">
+
+        <div class="brand">
+            <div class="brand-logo">R</div>
+            <h1>Бүртгүүлэх</h1>
+            <p>Шинэ бүртгэл үүсгэнэ үү</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <div class="alert {{ category }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endwith %}
+
+        <form method="post" class="auth-form">
+
+            <label for="phone">Утасны дугаар</label>
+
+            <div class="phone-input">
+                <span>+976</span>
+                <input
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    inputmode="numeric"
+                    maxlength="8"
+                    value="{{ phone or '' }}"
+                    placeholder="99112233"
+                    autocomplete="tel"
+                    required
+                >
+            </div>
+
+            <label for="nickname">Nickname</label>
+            <input
+                id="nickname"
+                name="nickname"
+                type="text"
+                maxlength="50"
+                value="{{ nickname or '' }}"
+                placeholder="Жишээ: Yagaa"
+                autocomplete="nickname"
+                required
+            >
+
+            <label for="password">Нууц үг</label>
+            <input
+                id="password"
+                name="password"
+                type="password"
+                minlength="6"
+                placeholder="Хамгийн багадаа 6 тэмдэгт"
+                autocomplete="new-password"
+                required
+            >
+
+            <label for="confirm_password">Нууц үг давтах</label>
+            <input
+                id="confirm_password"
+                name="confirm_password"
+                type="password"
+                minlength="6"
+                placeholder="Нууц үгээ дахин оруулна уу"
+                autocomplete="new-password"
+                required
+            >
+
+            <button type="submit" class="primary-btn">
+                Бүртгэл үүсгэх
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            <span>Бүртгэлтэй юу?</span>
+            <a href="{{ url_for('login') }}">
+                Нэвтрэх
+            </a>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

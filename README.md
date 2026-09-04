@@ -1,42 +1,90 @@
-# Render Flask Starter
+# Render Flask + MongoDB Login
 
-Minimal Flask API project for deployment to Render.
+## User fields
 
-## Local run
+MongoDB `users` collection:
 
-```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python app.py
+```json
+{
+  "_id": "...",
+  "phone": "+97699112233",
+  "nickname": "Yagaa",
+  "password_hash": "..."
+}
 ```
 
-Windows Git Bash:
+There is no username or email.
 
-```bash
-python -m venv venv
-source venv/Scripts/activate
-pip install -r requirements.txt
-python app.py
+## Registration
+
+URL:
+
+```text
+/register
 ```
 
-Open:
+Fields:
 
-- http://localhost:5000/
-- http://localhost:5000/health
-- http://localhost:5000/api/test
+- phone
+- nickname
+- password
+- confirm password
+
+## Login
+
+URL:
+
+```text
+/login
+```
+
+Fields:
+
+- phone
+- password
+
+## MongoDB
+
+Set this environment variable in Render:
+
+```text
+MONGO_URI=mongodb+srv://USERNAME:PASSWORD@CLUSTER.mongodb.net/render_server?retryWrites=true&w=majority
+```
+
+Also add:
+
+```text
+SECRET_KEY=<random-long-secret>
+```
+
+If `render.yaml` is used, SECRET_KEY can be generated automatically.
 
 ## Render
 
-Connect the GitHub repository to Render.
+Build:
 
-Render settings:
+```text
+pip install -r requirements.txt
+```
 
-- Runtime: Python
-- Build Command: `pip install -r requirements.txt`
-- Start Command: `gunicorn app:app`
-- Health Check Path: `/health`
+Start:
 
-`render.yaml` is also included for Blueprint deployment.
-"# render_server" 
-"# render_server" 
+```text
+gunicorn app:app
+```
+
+Health:
+
+```text
+/health
+```
+
+## Git push
+
+```bat
+cd C:\Users\myagmardorj\Documents\render_server
+
+git add .
+git commit -m "Use MongoDB phone authentication"
+git push origin main
+```

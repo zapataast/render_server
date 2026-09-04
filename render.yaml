@@ -1,8 +1,17 @@
 services:
   - type: web
-    name: flask-api
+    name: render-server
     runtime: python
     plan: free
+
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
+
     healthCheckPath: /health
+
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+
+      - key: MONGO_URI
+        sync: false
