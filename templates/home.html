@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="mn">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Anime Library</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}">
+</head>
+<body>
+    <div class="page">
+        <header class="site-header">
+            <div>
+                <p class="eyebrow">ANIME LIBRARY</p>
+                <h1>Anime & Episodes</h1>
+                <p class="subtext">
+                    Anime мэдээлэл болон ангиудын линкүүдийг нэг дор харуулна.
+                </p>
+            </div>
+        </header>
+
+        {% if error %}
+            <div class="error-box">
+                <strong>Алдаа:</strong> {{ error }}
+            </div>
+        {% endif %}
+
+        <div class="anime-list">
+            {% for anime in anime_list %}
+                <section class="anime-card">
+                    <div class="anime-left">
+                        <div class="poster-wrap">
+                            {% if anime.image_url %}
+                                <img src="{{ anime.image_url }}" alt="{{ anime.name }}" class="poster">
+                            {% else %}
+                                <div class="poster placeholder">No Image</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="side-buttons">
+                            <a href="#" class="ghost-btn">Танилцуулга видео</a>
+                        </div>
+                    </div>
+
+                    <div class="anime-right">
+                        <h2 class="anime-title">{{ anime.name }}</h2>
+
+                        <div class="desc">
+                            {{ anime.description }}
+                        </div>
+
+                        <div class="meta">
+                            {% if anime.anime_type %}
+                                <p><strong>Төрөл:</strong> {{ anime.anime_type }}</p>
+                            {% endif %}
+
+                            {% if anime.episodes %}
+                                <p><strong>Episodes:</strong> {{ anime.episodes }}</p>
+                            {% endif %}
+
+                            {% if anime.status %}
+                                <p><strong>Status:</strong> {{ anime.status }}</p>
+                            {% endif %}
+
+                            {% if anime.premiered %}
+                                <p><strong>Premiered:</strong> {{ anime.premiered }}</p>
+                            {% endif %}
+
+                            {% if anime.broadcast %}
+                                <p><strong>Broadcast:</strong> {{ anime.broadcast }}</p>
+                            {% endif %}
+
+                            {% if anime.producers %}
+                                <p><strong>Producers:</strong> {{ anime.producers }}</p>
+                            {% endif %}
+
+                            {% if anime.licensors %}
+                                <p><strong>Licensors:</strong> {{ anime.licensors }}</p>
+                            {% endif %}
+
+                            {% if anime.studios %}
+                                <p><strong>Studios:</strong> {{ anime.studios }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="episodes-box">
+                            <div class="episodes-header">
+                                <h3>Ангиуд</h3>
+                            </div>
+
+                            {% if anime.videos %}
+                                <div class="episode-list">
+                                    {% for video in anime.videos %}
+                                        <a
+                                            href="/watch/{{ video.id }}"
+                                            class="episode-row"
+                                        >
+                                            <div class="episode-number">
+                                                {{ video.episode_number }}
+                                            </div>
+
+                                            <div class="episode-content">
+                                                <div class="episode-name">
+                                                    {{ video.title }}
+                                                </div>
+                                            </div>
+
+                                            <div class="episode-action">
+                                                Үзэх →
+                                            </div>
+                                        </a>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="empty-episodes">
+                                    Одоогоор анги байхгүй.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </section>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html>

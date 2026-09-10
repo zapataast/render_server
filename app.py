@@ -11,10 +11,22 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 import requests
 from uploader import upload_video_to_telegram
-
+from utils import *
 import cloudinary
 import cloudinary.uploader
+import mimetypes
+import re
 
+from flask import (
+    Response,
+    abort,
+    request,
+    stream_with_context,
+)
+
+from uploader import (
+    telegram_range_stream,
+)
 load_dotenv()
 
 app = Flask(__name__)
@@ -118,10 +130,27 @@ def admin_required(fn):
         return fn(*args, **kwargs)
     return wrapper
 
+VIDEO_INDEX = {}
 
-@app.get("/")
-def index():
-    return redirect(url_for("dashboard" if session.get("user_id") else "login"))
+
+def build_video_index(anime_list):
+    global VIDEO_INDEX
+
+    VIDEO_INDEX = {}
+
+    for anime in anime_list:
+        for video in anime.get("videos", []):
+            video["anime"] = {
+                "id": anime.get("id"),
+                "name": anime.get("name"),
+                "image_url": anime.get("image_url"),
+                "description": anime.get("description"),
+            }
+
+            VIDEO_INDEX[int(video["id"])] = video
+from flask import abort, render_template
+
+
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -186,7 +215,19 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
+@app.get("/watch/<int:video_id>")
+def watch_video(video_id):
+    video = VIDEO_INDEX.get(
+        video_id
+    )
 
+    if not video:
+        abort(404)
+
+    return render_template(
+        "watch.html",
+        video=video,
+    )
 @app.get("/dashboard")
 @login_required
 def dashboard():
@@ -383,7 +424,7 @@ def anime_proxy():
         return jsonify({"ok": False, "error": "DJANGO_API_URL тохируулаагүй байна."}), 503
 
     try:
-        response = requests.get(f"{base_url.rstrip('/')}/api/anime/", timeout=20)
+        response = requests.get(f"{base_url.rstrip('/')}/api/anime/", timeout=2)
         try:
             data = response.json()
         except Exception:
@@ -431,6 +472,10 @@ def upload_video():
             uploaded.save(temp)
 
         file_size = os.path.getsize(temp_path)
+
+        duration = get_video_duration(
+            temp_path
+        )
         caption = title + (f" - EP {episode_number}" if episode_number is not None else "")
 
         telegram_result = asyncio.run(
@@ -448,14 +493,14 @@ def upload_video():
             "duration": duration,
             "is_uploaded": True,
         }
-
+        djang = send_video_info_to_django(metadata)
         django_result = save_video_metadata_to_django(metadata)
 
         return jsonify({
             "ok": True,
             "message": "Telegram upload амжилттай.",
             "video": metadata,
-            "django": django_result,
+            "django": djang,
         }), 201
 
     except Exception as exc:
@@ -511,6 +556,166 @@ def file_too_large(_):
     flash(f"Файл хэт том байна. Max {MAX_UPLOAD_MB}MB.", "danger")
     return redirect(request.referrer or url_for("dashboard"))
 
+def get_django_base_url():
+    url = os.environ.get("DJANGO_API_URL", "").strip()
+    if not url:
+        raise RuntimeError("DJANGO_API_URL тохируулаагүй байна.")
+    return url.rstrip("/")
+
+
+def fetch_anime_with_videos():
+    base_url = get_django_base_url()
+    url = f"{base_url}/api/public/anime-with-videos/"
+
+    response = requests.get(url, timeout=30)
+    response.raise_for_status()
+
+    data = response.json()
+
+    return data.get("results", [])
+
+@app.route("/")
+def home():
+    anime_list = []
+    error = ""
+
+    try:
+        anime_list = fetch_anime_with_videos()
+    except Exception as exc:
+        error = str(exc)
+
+    build_video_index(
+        anime_list
+    )
+
+    return render_template(
+        "home.html",
+        anime_list=anime_list,
+    )
+@app.get("/stream/<int:video_id>")
+def stream_video(video_id):
+
+    video = VIDEO_INDEX.get(
+        video_id
+    )
+
+    if not video:
+        abort(404)
+
+    channel_id = int(
+        video["telegram_channel_id"]
+    )
+
+    message_id = int(
+        video["telegram_message_id"]
+    )
+
+    file_size = int(
+        video.get("file_size") or 0
+    )
+
+    if file_size <= 0:
+        abort(404)
+
+    file_name = video.get(
+        "file_name",
+        ""
+    )
+
+    mime_type = (
+        mimetypes.guess_type(
+            file_name
+        )[0]
+        or "video/mp4"
+    )
+
+    start = 0
+    end = file_size - 1
+
+    range_header = request.headers.get(
+        "Range"
+    )
+
+    status = 200
+
+    if range_header:
+
+        match = re.match(
+            r"bytes=(\d*)-(\d*)",
+            range_header,
+        )
+
+        if not match:
+            return Response(
+                status=416,
+                headers={
+                    "Content-Range":
+                    f"bytes */{file_size}"
+                },
+            )
+
+        start_text = match.group(1)
+        end_text = match.group(2)
+
+        if start_text:
+            start = int(start_text)
+
+        if end_text:
+            end = min(
+                int(end_text),
+                file_size - 1,
+            )
+
+        if start >= file_size:
+            return Response(
+                status=416,
+                headers={
+                    "Content-Range":
+                    f"bytes */{file_size}"
+                },
+            )
+
+        status = 206
+
+    content_length = (
+        end - start + 1
+    )
+
+    headers = {
+        "Accept-Ranges": "bytes",
+
+        "Content-Length": str(
+            content_length
+        ),
+
+        "Cache-Control": (
+            "private, no-cache"
+        ),
+    }
+
+    if status == 206:
+        headers[
+            "Content-Range"
+        ] = (
+            f"bytes "
+            f"{start}-{end}/"
+            f"{file_size}"
+        )
+
+    return Response(
+        stream_with_context(
+            telegram_range_stream(
+                channel_id=channel_id,
+                message_id=message_id,
+                start=start,
+                end=end,
+            )
+        ),
+        status=status,
+        headers=headers,
+        content_type=mime_type,
+        direct_passthrough=True,
+    )
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=True)
