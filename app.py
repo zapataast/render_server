@@ -33,6 +33,25 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "change-me")
 app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://localhost:27017/render_server")
 PROFILE_IMAGE_MAX_MB = 5
+MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "anime_db")
+
+mongo_client = MongoClient(os.getenv("MONGO_URI"))
+mongo_db = mongo_client[MONGO_DB_NAME]
+videos_collection = mongo_db["videos"]
+
+metadata = {
+    "anime_id": "123",
+    "title": "Episode 1",
+    "episode": 1,
+    "telegram_channel_id": -1001234567890,
+    "telegram_message_id": 55,
+    "file_name": "episode_1.mp4",
+    "file_size": 123456789,
+    "active": True,
+}
+
+
+
 MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "2048"))
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
 PROFILE_IMAGE_SCALE = int(
@@ -493,8 +512,9 @@ def upload_video():
             "duration": duration,
             "is_uploaded": True,
         }
-        djang = send_video_info_to_django(metadata)
-        django_result = save_video_metadata_to_django(metadata)
+        #djang = send_video_info_to_django(metadata)
+        djang = send_video_info_to_mongodb(metadata,videos_collection)
+        #django_result = save_video_metadata_to_django(metadata)
 
         return jsonify({
             "ok": True,

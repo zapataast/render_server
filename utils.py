@@ -2,6 +2,36 @@ import os
 import requests
 import json
 import subprocess
+from datetime import datetime, timezone
+from bson import ObjectId
+from pymongo import MongoClient
+from django.conf import settings
+
+
+def send_video_info_to_mongodb(metadata,videos_collection):
+    try:
+        video_data = {
+            **metadata,
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
+        }
+
+        result = videos_collection.insert_one(video_data)
+
+        return {
+            "success": True,
+            "video_id": str(result.inserted_id),
+        }
+
+    except Exception as e:
+        print("❌ MongoDB insert error:", e)
+
+        return {
+            "success": False,
+            "error": str(e),
+        }
+
+
 def get_video_duration(file_path):
     command = [
         "ffprobe",
