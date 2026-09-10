@@ -3,3 +3,7 @@ __pycache__/
 .env
 .venv/
 venv/
+*.session
+*.session-journal
+Working.mkv
+.DS_Store

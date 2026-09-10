@@ -3,7 +3,7 @@
 {% block body %}
 <header>
   <b>Render App</b>
-  <nav><a href="{{url_for('profile')}}">Profile</a><a href="{{url_for('logout')}}">Гарах</a></nav>
+  <nav>{% if is_admin_user %}<a href="{{url_for('uploader_page')}}">Uploader</a>{% endif %}<a href="{{url_for('profile')}}">Profile</a><a href="{{url_for('logout')}}">Гарах</a></nav>
 </header>
 <main>
   <div class="card">
@@ -13,13 +13,13 @@
       {% else %}
         <div class="avatar fallback">{{user.nickname[:1]|upper}}</div>
       {% endif %}
-      <div><h1>{{user.nickname}}</h1><p>+976 {{display_phone(user.phone)}}</p></div>
+      <div><h1>{{user.nickname}} {% if is_admin_user %}<span class="admin-badge">ADMIN</span>{% endif %}</h1><p>+976 {{display_phone(user.phone)}}</p></div>
     </div>
     <div class="rows">
       <div><span>Email</span><b>{{user.email or "Оруулаагүй"}}</b></div>
       <div><span>Төрсөн огноо</span><b>{{user.birthdate or "Оруулаагүй"}}</b></div>
     </div>
-    <a class="btnlink" href="{{url_for('profile')}}">Profile засах</a>
+    <a class="btnlink" href="{{url_for('profile')}}">Profile засах</a>{% if is_admin_user %}<a class="btnlink" style="margin-left:8px;background:#242633" href="{{url_for('uploader_page')}}">Admin uploader</a>{% endif %}
   </div>
 </main>
 {% endblock %}

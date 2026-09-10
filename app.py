@@ -1,4 +1,4 @@
-import os, re
+import os, re, asyncio, tempfile
 from datetime import datetime
 from functools import wraps
 
@@ -9,6 +9,9 @@ from flask_pymongo import PyMongo
 from pymongo.errors import DuplicateKeyError
 from werkzeug.security import generate_password_hash, check_password_hash
 
+import requests
+from uploader import upload_video_to_telegram
+
 import cloudinary
 import cloudinary.uploader
 
@@ -17,7 +20,9 @@ load_dotenv()
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "change-me")
 app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://localhost:27017/render_server")
-app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
+PROFILE_IMAGE_MAX_MB = 5
+MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "2048"))
+app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
 PROFILE_IMAGE_SCALE = int(
     os.getenv("PROFILE_IMAGE_SCALE", "100")
 )
@@ -69,6 +74,20 @@ def display_phone(phone):
     return phone[4:] if phone and phone.startswith("+976") else (phone or "")
 
 
+def admin_phones():
+    raw = os.getenv("ADMIN_PHONES", "85963616")
+    values = set()
+    for item in raw.split(","):
+        phone = normalize_phone(item.strip())
+        if phone:
+            values.add(phone)
+    return values
+
+
+def is_admin(user):
+    return bool(user and user.get("phone") in admin_phones())
+
+
 def current_user():
     try:
         return mongo.db.users.find_one({"_id": ObjectId(session.get("user_id"))})
@@ -82,6 +101,20 @@ def login_required(fn):
         if not current_user():
             session.clear()
             return redirect(url_for("login"))
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+def admin_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        user = current_user()
+        if not user:
+            session.clear()
+            return redirect(url_for("login"))
+        if not is_admin(user):
+            flash("Энэ хэсэгт зөвхөн admin хэрэглэгч нэвтэрнэ.", "danger")
+            return redirect(url_for("dashboard"))
         return fn(*args, **kwargs)
     return wrapper
 
@@ -158,7 +191,7 @@ def logout():
 @login_required
 def dashboard():
     user = current_user()
-    return render_template("dashboard.html", user=user, display_phone=display_phone)
+    return render_template("dashboard.html", user=user, display_phone=display_phone, is_admin_user=is_admin(user))
 
 
 @app.route("/profile", methods=["GET", "POST"])
@@ -228,6 +261,10 @@ def upload_profile_image():
         flash("Зураг сонгоно уу.", "danger")
         return redirect(url_for("profile"))
 
+    if request.content_length and request.content_length > PROFILE_IMAGE_MAX_MB * 1024 * 1024:
+        flash(f"Зураг {PROFILE_IMAGE_MAX_MB}MB-аас их байна.", "danger")
+        return redirect(url_for("profile"))
+
     ext = image.filename.rsplit(".", 1)[-1].lower() if "." in image.filename else ""
     if ext not in ALLOWED_IMAGE_EXTENSIONS:
         flash("JPG, PNG эсвэл WEBP зураг ашиглана уу.", "danger")
@@ -286,6 +323,152 @@ def remove_profile_image():
     return redirect(url_for("profile"))
 
 
+VIDEO_EXTENSIONS = {"mp4", "mkv", "webm", "mov", "avi", "m4v"}
+
+
+def save_video_metadata_to_django(payload):
+    base_url = os.getenv("DJANGO_API_URL", "").strip()
+    if not base_url:
+        return {
+            "configured": False,
+            "saved": False,
+            "message": "DJANGO_API_URL тохируулаагүй байна.",
+        }
+
+    url = f"{base_url.rstrip('/')}/api/videos/create/"
+    headers = {"Content-Type": "application/json"}
+    api_key = os.getenv("DJANGO_API_KEY", "").strip()
+    if api_key:
+        headers["X-API-Key"] = api_key
+
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=30)
+        try:
+            body = response.json()
+        except Exception:
+            body = {"raw": response.text[:1000]}
+
+        return {
+            "configured": True,
+            "saved": response.ok,
+            "status_code": response.status_code,
+            "response": body,
+        }
+    except Exception as exc:
+        return {
+            "configured": True,
+            "saved": False,
+            "error": str(exc),
+        }
+
+
+@app.get("/uploader")
+@admin_required
+def uploader_page():
+    user = current_user()
+    return render_template(
+        "uploader.html",
+        user=user,
+        display_phone=display_phone,
+        max_upload_mb=MAX_UPLOAD_MB,
+        django_configured=bool(os.getenv("DJANGO_API_URL")),
+    )
+
+
+@app.get("/api/admin/anime")
+@admin_required
+def anime_proxy():
+    base_url = os.getenv("DJANGO_API_URL", "").strip()
+    if not base_url:
+        return jsonify({"ok": False, "error": "DJANGO_API_URL тохируулаагүй байна."}), 503
+
+    try:
+        response = requests.get(f"{base_url.rstrip('/')}/api/anime/", timeout=20)
+        try:
+            data = response.json()
+        except Exception:
+            data = {"error": response.text[:1000]}
+        return jsonify(data), response.status_code
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 502
+
+
+@app.post("/api/admin/upload-video")
+@admin_required
+def upload_video():
+    uploaded = request.files.get("file")
+    if not uploaded or not uploaded.filename:
+        return jsonify({"ok": False, "error": "Video file сонгоно уу."}), 400
+
+    original_name = os.path.basename(uploaded.filename)
+    ext = original_name.rsplit(".", 1)[-1].lower() if "." in original_name else ""
+    if ext not in VIDEO_EXTENSIONS:
+        return jsonify({
+            "ok": False,
+            "error": "MP4, MKV, WEBM, MOV, AVI эсвэл M4V файл ашиглана уу."
+        }), 400
+
+    title = (request.form.get("title") or "").strip()
+    anime_id_raw = (request.form.get("anime_id") or "").strip()
+    episode_raw = (request.form.get("episode_number") or "").strip()
+    duration_raw = (request.form.get("duration") or "").strip()
+
+    if not title:
+        return jsonify({"ok": False, "error": "Title заавал оруулна."}), 400
+
+    try:
+        anime_id = int(anime_id_raw) if anime_id_raw else None
+        episode_number = int(episode_raw) if episode_raw else None
+        duration = float(duration_raw) if duration_raw else None
+    except ValueError:
+        return jsonify({"ok": False, "error": "Anime / Episode / Duration утга буруу байна."}), 400
+
+    temp_path = None
+    try:
+        suffix = f".{ext}" if ext else ".mp4"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp:
+            temp_path = temp.name
+            uploaded.save(temp)
+
+        file_size = os.path.getsize(temp_path)
+        caption = title + (f" - EP {episode_number}" if episode_number is not None else "")
+
+        telegram_result = asyncio.run(
+            upload_video_to_telegram(temp_path, caption=caption)
+        )
+
+        metadata = {
+            "anime_id": anime_id,
+            "title": title,
+            "episode_number": episode_number,
+            "telegram_channel_id": telegram_result["channel_id"],
+            "telegram_message_id": telegram_result["message_id"],
+            "file_name": telegram_result.get("file_name") or original_name,
+            "file_size": telegram_result.get("file_size") or file_size,
+            "duration": duration,
+            "is_uploaded": True,
+        }
+
+        django_result = save_video_metadata_to_django(metadata)
+
+        return jsonify({
+            "ok": True,
+            "message": "Telegram upload амжилттай.",
+            "video": metadata,
+            "django": django_result,
+        }), 201
+
+    except Exception as exc:
+        app.logger.exception("Telegram video upload failed")
+        return jsonify({"ok": False, "error": str(exc)}), 500
+    finally:
+        if temp_path:
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+
+
 @app.get("/health")
 def health():
     try:
@@ -297,9 +480,14 @@ def health():
 
 @app.errorhandler(413)
 def file_too_large(_):
-    flash("Зураг 5MB-аас их байна.", "danger")
-    return redirect(url_for("profile"))
+    if request.path.startswith("/api/admin/upload-video"):
+        return jsonify({
+            "ok": False,
+            "error": f"Video файл хэт том байна. MAX_UPLOAD_MB={MAX_UPLOAD_MB} MB.",
+        }), 413
+    flash(f"Файл хэт том байна. Max {MAX_UPLOAD_MB}MB.", "danger")
+    return redirect(request.referrer or url_for("dashboard"))
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)), debug=True)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=True)

@@ -4,7 +4,7 @@ services:
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 600
     healthCheckPath: /health
     envVars:
       - key: SECRET_KEY
@@ -12,4 +12,20 @@ services:
       - key: MONGO_URI
         sync: false
       - key: CLOUDINARY_URL
+        sync: false
+      - key: ADMIN_PHONES
+        value: "85963616"
+      - key: TELEGRAM_API_ID
+        sync: false
+      - key: TELEGRAM_API_HASH
+        sync: false
+      - key: TELEGRAM_CHANNEL_ID
+        sync: false
+      - key: TELEGRAM_SESSION
+        sync: false
+      - key: MAX_UPLOAD_MB
+        value: "2048"
+      - key: DJANGO_API_URL
+        sync: false
+      - key: DJANGO_API_KEY
         sync: false

@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Video Uploader{% endblock %}
+{% block body %}
+<header>
+  <b>Render App <span class="admin-badge">ADMIN</span></b>
+  <nav>
+    <a href="{{ url_for('dashboard') }}">Dashboard</a>
+    <a href="{{ url_for('profile') }}">Profile</a>
+    <a href="{{ url_for('logout') }}">Гарах</a>
+  </nav>
+</header>
+
+<main class="uploader-main">
+  <section class="upload-hero">
+    <div>
+      <div class="kicker">TELEGRAM MEDIA CONSOLE</div>
+      <h1>Anime Video Uploader</h1>
+      <p>Video файлыг Telegram channel руу upload хийгээд message ID, channel ID болон file metadata-г буцаана.</p>
+    </div>
+    <div class="admin-user-chip">
+      <span class="online-dot"></span>
+      +976 {{ display_phone(user.phone) }} · Admin
+    </div>
+  </section>
+
+  <div class="uploader-layout">
+    <section class="card uploader-card">
+      <form id="videoUploadForm">
+        <div class="upload-section-title"><span>01</span><h2>Video мэдээлэл</h2></div>
+
+        <div class="upload-grid">
+          <div class="upload-field full">
+            <label>Anime</label>
+            <div class="anime-select-row">
+              <select id="animeSelect" name="anime_id">
+                <option value="">Anime сонгох...</option>
+              </select>
+              <button type="button" id="refreshAnime" class="refresh-btn">↻</button>
+            </div>
+            <small id="animeStatus">
+              {% if django_configured %}Django-с Anime жагсаалт ачаална.{% else %}DJANGO_API_URL тохируулаагүй байна.{% endif %}
+            </small>
+          </div>
+
+          <div class="upload-field full">
+            <label>Title</label>
+            <input id="videoTitle" name="title" placeholder="Жишээ: Solo Leveling" required>
+          </div>
+
+          <div class="upload-field">
+            <label>Episode</label>
+            <input name="episode_number" type="number" min="0" placeholder="1">
+          </div>
+
+          <div class="upload-field">
+            <label>Duration (sec)</label>
+            <input name="duration" type="number" min="0" step="0.01" placeholder="1422.5">
+          </div>
+        </div>
+
+        <div class="upload-section-title second"><span>02</span><h2>Video сонгох</h2></div>
+        <input id="videoFile" name="file" type="file" accept="video/*,.mkv,.mp4,.webm,.mov,.avi,.m4v" hidden required>
+
+        <div id="dropzone" class="video-dropzone" tabindex="0">
+          <div class="drop-upload-icon">⇧</div>
+          <strong>Video файлаа энд чирж оруул</strong>
+          <p>эсвэл <em>Browse video</em> дарж сонго</p>
+          <small>MP4 · MKV · WEBM · MOV · AVI · M4V · Max {{ max_upload_mb }} MB</small>
+        </div>
+
+        <div id="selectedFile" class="selected-file hidden">
+          <div class="video-file-icon">VID</div>
+          <div class="selected-file-meta"><b id="selectedFileName">—</b><span id="selectedFileSize">—</span></div>
+          <button type="button" id="removeVideo" class="remove-video">Remove</button>
+        </div>
+
+        <div id="uploadProgress" class="upload-progress hidden">
+          <div class="progress-label"><span id="progressText">Uploading...</span><b id="progressPercent">0%</b></div>
+          <div class="progress-track"><div id="progressBar" class="progress-fill"></div></div>
+          <small id="progressNote">Browser → Flask</small>
+        </div>
+
+        <button id="uploadButton" class="upload-submit" type="submit"><span>Upload to Telegram</span><span>→</span></button>
+      </form>
+    </section>
+
+    <aside class="uploader-side">
+      <section class="card result-card">
+        <div class="upload-section-title"><span>03</span><h2>Result</h2></div>
+        <div id="resultEmpty" class="result-empty">Upload амжилттай бол Telegram message ID энд гарна.</div>
+        <div id="resultSuccess" class="hidden">
+          <div class="success-box"><span>✓</span><div><b>Telegram upload complete</b><small id="djangoSaveState">Metadata...</small></div></div>
+          <div class="metadata-row"><span>Channel ID</span><b id="resultChannel">—</b></div>
+          <div class="metadata-row"><span>Message ID</span><b id="resultMessage">—</b></div>
+          <div class="metadata-row"><span>File</span><b id="resultFile">—</b></div>
+          <div class="metadata-row"><span>Size</span><b id="resultSize">—</b></div>
+        </div>
+        <div id="resultError" class="result-error hidden"><b>Upload failed</b><span id="resultErrorText"></span></div>
+      </section>
+
+      <section class="card upload-flow-card">
+        <h3>Upload flow</h3>
+        <div class="flow-step"><span>1</span><div><b>Flask</b><small>Файлыг түр хүлээн авна</small></div></div>
+        <i></i>
+        <div class="flow-step"><span>2</span><div><b>Telegram</b><small>Video upload + message ID</small></div></div>
+        <i></i>
+        <div class="flow-step"><span>3</span><div><b>Django</b><small>Metadata → PostgreSQL</small></div></div>
+      </section>
+    </aside>
+  </div>
+</main>
+<script src="{{ url_for('static', filename='uploader.js') }}"></script>
+{% endblock %}
