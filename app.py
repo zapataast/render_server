@@ -468,7 +468,30 @@ def upload_video():
             except OSError:
                 pass
 
-
+@app.get("/debug/config")
+@admin_required
+def debug_config():
+    return jsonify({
+        "DJANGO_API_URL_set": bool(
+            os.getenv("DJANGO_API_URL")
+        ),
+        "DJANGO_API_URL": os.getenv(
+            "DJANGO_API_URL",
+            ""
+        ),
+        "DJANGO_API_KEY_set": bool(
+            os.getenv("DJANGO_API_KEY")
+        ),
+        "TELEGRAM_API_ID_set": bool(
+            os.getenv("TELEGRAM_API_ID")
+        ),
+        "TELEGRAM_CHANNEL_ID_set": bool(
+            os.getenv("TELEGRAM_CHANNEL_ID")
+        ),
+        "TELEGRAM_SESSION_set": bool(
+            os.getenv("TELEGRAM_SESSION")
+        ),
+    })
 @app.get("/health")
 def health():
     try:
