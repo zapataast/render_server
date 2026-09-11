@@ -1,125 +1,211 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="mn">
+
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Anime Library</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}">
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Anime</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <div class="page">
-        <header class="site-header">
-            <div>
-                <p class="eyebrow">ANIME LIBRARY</p>
-                <h1>Anime & Episodes</h1>
-                <p class="subtext">
-                    Anime мэдээлэл болон ангиудын линкүүдийг нэг дор харуулна.
-                </p>
-            </div>
-        </header>
 
-        {% if error %}
-            <div class="error-box">
-                <strong>Алдаа:</strong> {{ error }}
-            </div>
-        {% endif %}
 
-        <div class="anime-list">
-            {% for anime in anime_list %}
-                <section class="anime-card">
-                    <div class="anime-left">
-                        <div class="poster-wrap">
-                            {% if anime.image_url %}
-                                <img src="{{ anime.image_url }}" alt="{{ anime.name }}" class="poster">
-                            {% else %}
-                                <div class="poster placeholder">No Image</div>
-                            {% endif %}
-                        </div>
+<body class="bg-slate-950 text-white">
 
-                        <div class="side-buttons">
-                            <a href="#" class="ghost-btn">Танилцуулга видео</a>
-                        </div>
-                    </div>
+<div class="max-w-7xl mx-auto px-5 py-10">
 
-                    <div class="anime-right">
-                        <h2 class="anime-title">{{ anime.name }}</h2>
+    <!-- HEADER -->
 
-                        <div class="desc">
-                            {{ anime.description }}
-                        </div>
+    <div class="mb-8">
 
-                        <div class="meta">
-                            {% if anime.anime_type %}
-                                <p><strong>Төрөл:</strong> {{ anime.anime_type }}</p>
-                            {% endif %}
+        <h1 class="text-3xl md:text-4xl font-bold">
+            Anime
+        </h1>
 
-                            {% if anime.episodes %}
-                                <p><strong>Episodes:</strong> {{ anime.episodes }}</p>
-                            {% endif %}
+        <p class="text-slate-400 mt-2">
+            Үзэх Anime-аа сонгоно уу
+        </p>
 
-                            {% if anime.status %}
-                                <p><strong>Status:</strong> {{ anime.status }}</p>
-                            {% endif %}
-
-                            {% if anime.premiered %}
-                                <p><strong>Premiered:</strong> {{ anime.premiered }}</p>
-                            {% endif %}
-
-                            {% if anime.broadcast %}
-                                <p><strong>Broadcast:</strong> {{ anime.broadcast }}</p>
-                            {% endif %}
-
-                            {% if anime.producers %}
-                                <p><strong>Producers:</strong> {{ anime.producers }}</p>
-                            {% endif %}
-
-                            {% if anime.licensors %}
-                                <p><strong>Licensors:</strong> {{ anime.licensors }}</p>
-                            {% endif %}
-
-                            {% if anime.studios %}
-                                <p><strong>Studios:</strong> {{ anime.studios }}</p>
-                            {% endif %}
-                        </div>
-
-                        <div class="episodes-box">
-                            <div class="episodes-header">
-                                <h3>Ангиуд</h3>
-                            </div>
-
-                            {% if anime.videos %}
-                                <div class="episode-list">
-                                    {% for video in anime.videos %}
-                                        <a
-                                            href="/watch/{{ video.id }}"
-                                            class="episode-row"
-                                        >
-                                            <div class="episode-number">
-                                                {{ video.episode_number }}
-                                            </div>
-
-                                            <div class="episode-content">
-                                                <div class="episode-name">
-                                                    {{ video.title }}
-                                                </div>
-                                            </div>
-
-                                            <div class="episode-action">
-                                                Үзэх →
-                                            </div>
-                                        </a>
-                                    {% endfor %}
-                                </div>
-                            {% else %}
-                                <div class="empty-episodes">
-                                    Одоогоор анги байхгүй.
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </section>
-            {% endfor %}
-        </div>
     </div>
+
+
+    {% if anime_list %}
+
+    <div
+        class="
+            grid
+            grid-cols-2
+            sm:grid-cols-3
+            md:grid-cols-4
+            lg:grid-cols-5
+            xl:grid-cols-6
+            gap-5
+        "
+    >
+
+        {% for anime in anime_list %}
+
+        <a
+            href="/anime/{{ anime.id }}"
+
+            class="
+                group
+                block
+                rounded-2xl
+                overflow-hidden
+                bg-slate-900
+                border
+                border-slate-800
+                hover:border-slate-600
+                hover:-translate-y-1
+                transition
+                duration-200
+            "
+        >
+
+            <!-- POSTER -->
+
+            <div
+                class="
+                    aspect-[2/3]
+                    bg-slate-800
+                    overflow-hidden
+                    relative
+                "
+            >
+
+                {% if anime.image_url %}
+
+                <img
+                    src="{{ anime.image_url }}"
+                    alt="{{ anime.name }}"
+
+                    class="
+                        w-full
+                        h-full
+                        object-cover
+                        group-hover:scale-105
+                        transition
+                        duration-300
+                    "
+                >
+
+                {% else %}
+
+                <div
+                    class="
+                        w-full
+                        h-full
+                        flex
+                        items-center
+                        justify-center
+                        text-5xl
+                        text-slate-600
+                    "
+                >
+                    🎬
+                </div>
+
+                {% endif %}
+
+
+                <!-- STATUS -->
+
+                {% if anime.status == "airing" %}
+
+                <span
+                    class="
+                        absolute
+                        top-3
+                        left-3
+                        text-xs
+                        font-semibold
+                        bg-green-500
+                        text-white
+                        px-2.5
+                        py-1
+                        rounded-full
+                    "
+                >
+                    Airing
+                </span>
+
+                {% endif %}
+
+            </div>
+
+
+            <!-- INFO -->
+
+            <div class="p-4">
+
+                <h2
+                    class="
+                        font-bold
+                        text-base
+                        leading-5
+                        line-clamp-2
+                    "
+                >
+                    {{ anime.name }}
+                </h2>
+
+
+                <div
+                    class="
+                        mt-2
+                        text-xs
+                        text-slate-400
+                        flex
+                        gap-2
+                    "
+                >
+
+                    <span>
+                        {{ anime.anime_type|upper }}
+                    </span>
+
+                    {% if anime.episodes %}
+
+                    <span>•</span>
+
+                    <span>
+                        {{ anime.episodes }} анги
+                    </span>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </a>
+
+        {% endfor %}
+
+    </div>
+
+
+    {% else %}
+
+    <div
+        class="
+            py-20
+            text-center
+            text-slate-500
+        "
+    >
+        Anime бүртгэл одоогоор алга.
+    </div>
+
+    {% endif %}
+
+</div>
+
 </body>
 </html>

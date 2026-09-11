@@ -8,6 +8,83 @@ from pymongo import MongoClient
 from django.conf import settings
 
 
+from dotenv import load_dotenv
+from pymongo import MongoClient
+
+
+def send_anime_info_to_mongodb(metadata,anime_collection):
+    try:
+        now = datetime.now(timezone.utc)
+
+        anime_data = {
+            "name": metadata.get("name", "").strip(),
+            "description": metadata.get("description", "").strip(),
+
+            "active": metadata.get("active", True),
+
+            "anime_type": metadata.get("anime_type", "tv"),
+
+            "episodes": metadata.get("episodes"),
+
+            "status": metadata.get(
+                "status",
+                "finished"
+            ),
+
+            "aired_from": metadata.get("aired_from"),
+            "aired_to": metadata.get("aired_to"),
+
+            "premiered": metadata.get(
+                "premiered",
+                ""
+            ).strip(),
+
+            "broadcast": metadata.get(
+                "broadcast",
+                ""
+            ).strip(),
+
+            "producers": metadata.get(
+                "producers",
+                ""
+            ).strip(),
+
+            "licensors": metadata.get(
+                "licensors",
+                ""
+            ).strip(),
+
+            "studios": metadata.get(
+                "studios",
+                ""
+            ).strip(),
+
+            "image_url": metadata.get(
+                "image_url",
+                ""
+            ).strip(),
+
+            "created_at": now,
+            "updated_at": now,
+        }
+
+        result = anime_collection.insert_one(
+            anime_data
+        )
+
+        return {
+            "success": True,
+            "anime_id": str(
+                result.inserted_id
+            ),
+        }
+
+    except Exception as e:
+        print(
+            "❌ MongoDB anime insert error:",
+            e
+        )
+
 def send_video_info_to_mongodb(metadata,videos_collection):
     try:
         video_data = {

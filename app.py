@@ -38,6 +38,7 @@ MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "anime_db")
 mongo_client = MongoClient(os.getenv("MONGO_URI"))
 mongo_db = mongo_client[MONGO_DB_NAME]
 videos_collection = mongo_db["videos"]
+anime_collection = mongo_db["anime"]
 
 metadata = {
     "anime_id": "123",
@@ -83,6 +84,39 @@ else:
     )
 
 ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
+def serialize_anime(anime):
+    return {
+        "id": str(anime["_id"]),
+        "name": anime.get("name", ""),
+        "description": anime.get("description", ""),
+        "active": anime.get("active", True),
+
+        "anime_type": anime.get("anime_type", "tv"),
+        "episodes": anime.get("episodes"),
+
+        "status": anime.get("status", "finished"),
+
+        "aired_from": (
+            anime.get("aired_from").strftime("%Y-%m-%d")
+            if anime.get("aired_from")
+            else ""
+        ),
+
+        "aired_to": (
+            anime.get("aired_to").strftime("%Y-%m-%d")
+            if anime.get("aired_to")
+            else ""
+        ),
+
+        "premiered": anime.get("premiered", ""),
+        "broadcast": anime.get("broadcast", ""),
+        "producers": anime.get("producers", ""),
+        "licensors": anime.get("licensors", ""),
+        "studios": anime.get("studios", ""),
+
+        "image_url": anime.get("image_url", ""),
+        "image_public_id": anime.get("image_public_id", ""),
+    }
 
 with app.app_context():
     try:
@@ -170,8 +204,6 @@ def build_video_index(anime_list):
 from flask import abort, render_template
 
 
-
-
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -234,18 +266,45 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
-@app.get("/watch/<int:video_id>")
+@app.get("/watch/<video_id>")
 def watch_video(video_id):
-    video = VIDEO_INDEX.get(
-        video_id
-    )
+
+    if not ObjectId.is_valid(video_id):
+        abort(404)
+
+    video = videos_collection.find_one({
+        "_id": ObjectId(video_id),
+        "is_uploaded": True,
+    })
 
     if not video:
         abort(404)
 
+    video["id"] = str(
+        video["_id"]
+    )
+
+    anime = None
+
+    anime_id = video.get(
+        "anime_id"
+    )
+
+    if anime_id:
+
+        anime = anime_collection.find_one({
+            "_id": anime_id
+        })
+
+        if anime:
+            anime["id"] = str(
+                anime["_id"]
+            )
+
     return render_template(
         "watch.html",
         video=video,
+        anime=anime,
     )
 @app.get("/dashboard")
 @login_required
@@ -435,24 +494,7 @@ def uploader_page():
     )
 
 
-@app.get("/api/admin/anime")
-@admin_required
-def anime_proxy():
-    base_url = os.getenv("DJANGO_API_URL", "").strip()
-    if not base_url:
-        return jsonify({"ok": False, "error": "DJANGO_API_URL тохируулаагүй байна."}), 503
-
-    try:
-        response = requests.get(f"{base_url.rstrip('/')}/api/anime/", timeout=2)
-        try:
-            data = response.json()
-        except Exception:
-            data = {"error": response.text[:1000]}
-        return jsonify(data), response.status_code
-    except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 502
-
-
+from bson import ObjectId
 @app.post("/api/admin/upload-video")
 @admin_required
 def upload_video():
@@ -470,6 +512,7 @@ def upload_video():
 
     title = (request.form.get("title") or "").strip()
     anime_id_raw = (request.form.get("anime_id") or "").strip()
+    print("🐍 File: render_server/app.py | Line: 490 | upload_video ~ anime_id_raw",anime_id_raw)
     episode_raw = (request.form.get("episode_number") or "").strip()
     duration_raw = (request.form.get("duration") or "").strip()
 
@@ -477,9 +520,9 @@ def upload_video():
         return jsonify({"ok": False, "error": "Title заавал оруулна."}), 400
 
     try:
-        anime_id = int(anime_id_raw) if anime_id_raw else None
+        anime_id = ObjectId(anime_id_raw) if anime_id_raw else None
         episode_number = int(episode_raw) if episode_raw else None
-        duration = float(duration_raw) if duration_raw else None
+        #duration = float(duration_raw) if duration_raw else None
     except ValueError:
         return jsonify({"ok": False, "error": "Anime / Episode / Duration утга буруу байна."}), 400
 
@@ -495,6 +538,7 @@ def upload_video():
         duration = get_video_duration(
             temp_path
         )
+        print("🐍 File: render_server/app.py | Line: 515 | upload_video ~ duration",duration)
         caption = title + (f" - EP {episode_number}" if episode_number is not None else "")
 
         telegram_result = asyncio.run(
@@ -514,6 +558,9 @@ def upload_video():
         }
         #djang = send_video_info_to_django(metadata)
         djang = send_video_info_to_mongodb(metadata,videos_collection)
+        print("✔️✔️✔️✔️✔️✔️✔️✔️✔️✔️✔️✔️✔️✔️✔️✔️")
+        print("SUCCESSFULLY UPLOADED",djang)
+        print("▶️▶️▶️▶️▶️▶️▶️▶️▶️▶️▶️▶️▶️▶️▶️▶️")
         #django_result = save_video_metadata_to_django(metadata)
 
         return jsonify({
@@ -596,28 +643,79 @@ def fetch_anime_with_videos():
 
 @app.route("/")
 def home():
-    anime_list = []
-    error = ""
-
-    try:
-        anime_list = fetch_anime_with_videos()
-    except Exception as exc:
-        error = str(exc)
-
-    build_video_index(
-        anime_list
+    anime_list = list(
+        anime_collection.find(
+            {
+                "active": True
+            }
+        ).sort(
+            "created_at",
+            -1
+        )
     )
+
+    for anime in anime_list:
+        anime["id"] = str(anime["_id"])
 
     return render_template(
         "home.html",
         anime_list=anime_list,
     )
-@app.get("/stream/<int:video_id>")
+
+@app.route("/anime/<anime_id>")
+def anime_detail(anime_id):
+
+    if not ObjectId.is_valid(anime_id):
+        abort(404)
+
+    anime_object_id = ObjectId(anime_id)
+
+    anime = anime_collection.find_one({
+        "_id": anime_object_id,
+        "active": True,
+    })
+
+    if not anime:
+        abort(404)
+
+    anime["id"] = str(anime["_id"])
+
+    videos = list(
+        videos_collection.find(
+            {
+                "anime_id": anime_object_id,
+               
+            }
+        ).sort(
+            "episode_number",
+            1
+        )
+    )
+
+    for video in videos:
+        video["id"] = str(video["_id"])
+
+    return render_template(
+        "anime_detail.html",
+        anime=anime,
+        videos=videos,
+    )
+
+
+@app.get("/stream/<video_id>")
 def stream_video(video_id):
 
-    video = VIDEO_INDEX.get(
-        video_id
-    )
+    # =====================================================
+    # 1. MONGODB VIDEO FIND
+    # =====================================================
+
+    if not ObjectId.is_valid(video_id):
+        abort(404)
+
+    video = videos_collection.find_one({
+        "_id": ObjectId(video_id),
+        "is_uploaded": True,
+    })
 
     if not video:
         abort(404)
@@ -736,6 +834,456 @@ def stream_video(video_id):
         content_type=mime_type,
         direct_passthrough=True,
     )
+
+
+TYPE_CHOICES = [
+    ("tv", "TV"),
+    ("movie", "Movie"),
+    ("ova", "OVA"),
+    ("ona", "ONA"),
+    ("special", "Special"),
+    ("music", "Music"),
+]
+
+
+STATUS_CHOICES = [
+    ("finished", "Finished Airing"),
+    ("airing", "Currently Airing"),
+    ("not_yet_aired", "Not Yet Aired"),
+]
+
+
+def parse_date(value):
+    if not value:
+        return None
+
+    return datetime.strptime(
+        value,
+        "%Y-%m-%d"
+    )
+@app.route("/api/admin/anime", methods=["GET"])
+def api_admin_anime():
+    try:
+
+        anime_list = anime_collection.find(
+            {}
+        ).sort(
+            "created_at",
+            -1
+        )
+
+        results = [
+            serialize_anime(anime)
+            for anime in anime_list
+        ]
+
+        return jsonify({
+            "ok": True,
+            "results": results,
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "ok": False,
+            "error": str(e),
+        }), 500
+@app.route(
+    "/api/admin/anime/image-upload",
+    methods=["POST"],
+)
+def anime_image_upload():
+
+    try:
+
+        file = request.files.get("image")
+
+        if not file:
+            return jsonify({
+                "ok": False,
+                "error": "Зураг сонгоогүй байна.",
+            }), 400
+
+        upload_result = cloudinary.uploader.upload(
+            file,
+            folder="anime/posters",
+            resource_type="image",
+
+            transformation=[
+                {
+                    "quality": "auto",
+                    "fetch_format": "auto",
+                }
+            ],
+        )
+
+        return jsonify({
+            "ok": True,
+            "image_url": upload_result.get(
+                "secure_url"
+            ),
+            "public_id": upload_result.get(
+                "public_id"
+            ),
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "ok": False,
+            "error": str(e),
+        }), 500
+
+# =========================================================
+# PAGE
+# =========================================================
+
+@app.route("/anime/create")
+def anime_create_page():
+    return render_template(
+        "anime_create.html"
+    )
+
+
+@app.route(
+    "/api/admin/anime/create",
+    methods=["POST"],
+)
+def api_anime_create():
+
+    try:
+
+        data = request.get_json() or {}
+
+        name = (
+            data.get("name") or ""
+        ).strip()
+
+        if not name:
+            return jsonify({
+                "ok": False,
+                "error": "Anime нэр заавал оруулна.",
+            }), 400
+
+        episodes = data.get("episodes")
+
+        if episodes in ["", None]:
+            episodes = None
+        else:
+            episodes = int(episodes)
+
+        now = datetime.now(timezone.utc)
+
+        anime_data = {
+
+            "name": name,
+
+            "description": (
+                data.get("description") or ""
+            ).strip(),
+
+            "active": bool(
+                data.get("active", True)
+            ),
+
+            "anime_type": data.get(
+                "anime_type",
+                "tv"
+            ),
+
+            "episodes": episodes,
+
+            "status": data.get(
+                "status",
+                "finished"
+            ),
+
+            "aired_from": parse_date(
+                data.get("aired_from")
+            ),
+
+            "aired_to": parse_date(
+                data.get("aired_to")
+            ),
+
+            "premiered": (
+                data.get("premiered") or ""
+            ).strip(),
+
+            "broadcast": (
+                data.get("broadcast") or ""
+            ).strip(),
+
+            "producers": (
+                data.get("producers") or ""
+            ).strip(),
+
+            "licensors": (
+                data.get("licensors") or ""
+            ).strip(),
+
+            "studios": (
+                data.get("studios") or ""
+            ).strip(),
+
+            "image_url": (
+                data.get("image_url") or ""
+            ).strip(),
+
+            "image_public_id": (
+                data.get("image_public_id") or ""
+            ).strip(),
+
+            "created_at": now,
+            "updated_at": now,
+        }
+
+        result = anime_collection.insert_one(
+            anime_data
+        )
+
+        return jsonify({
+            "ok": True,
+            "id": str(result.inserted_id),
+            "message": "Anime амжилттай бүртгэгдлээ.",
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "ok": False,
+            "error": str(e),
+        }), 500
+
+
+# =========================================================
+# UPDATE
+# =========================================================
+
+@app.route(
+    "/api/admin/anime/<anime_id>",
+    methods=["PUT"],
+)
+def api_anime_update(anime_id):
+
+    try:
+
+        if not ObjectId.is_valid(anime_id):
+            return jsonify({
+                "ok": False,
+                "error": "Anime ID буруу байна.",
+            }), 400
+
+        anime = anime_collection.find_one({
+            "_id": ObjectId(anime_id)
+        })
+
+        if not anime:
+            return jsonify({
+                "ok": False,
+                "error": "Anime олдсонгүй.",
+            }), 404
+
+        data = request.get_json() or {}
+
+        episodes = data.get("episodes")
+
+        if episodes in ["", None]:
+            episodes = None
+        else:
+            episodes = int(episodes)
+
+        # -----------------------------------------
+        # зураг солигдсон бол хуучныг Cloudinary-с устгах
+        # -----------------------------------------
+
+        new_public_id = (
+            data.get("image_public_id")
+            or ""
+        ).strip()
+
+        old_public_id = anime.get(
+            "image_public_id",
+            ""
+        )
+
+        if (
+            new_public_id
+            and old_public_id
+            and new_public_id != old_public_id
+        ):
+            try:
+                cloudinary.uploader.destroy(
+                    old_public_id
+                )
+            except Exception as image_error:
+                print(
+                    "Old image delete error:",
+                    image_error
+                )
+
+        update_data = {
+
+            "name": (
+                data.get("name") or ""
+            ).strip(),
+
+            "description": (
+                data.get("description") or ""
+            ).strip(),
+
+            "active": bool(
+                data.get("active", True)
+            ),
+
+            "anime_type": data.get(
+                "anime_type",
+                "tv"
+            ),
+
+            "episodes": episodes,
+
+            "status": data.get(
+                "status",
+                "finished"
+            ),
+
+            "aired_from": parse_date(
+                data.get("aired_from")
+            ),
+
+            "aired_to": parse_date(
+                data.get("aired_to")
+            ),
+
+            "premiered": (
+                data.get("premiered") or ""
+            ).strip(),
+
+            "broadcast": (
+                data.get("broadcast") or ""
+            ).strip(),
+
+            "producers": (
+                data.get("producers") or ""
+            ).strip(),
+
+            "licensors": (
+                data.get("licensors") or ""
+            ).strip(),
+
+            "studios": (
+                data.get("studios") or ""
+            ).strip(),
+
+            "image_url": (
+                data.get("image_url") or ""
+            ).strip(),
+
+            "image_public_id": new_public_id,
+
+            "updated_at":
+                datetime.now(timezone.utc),
+        }
+
+        anime_collection.update_one(
+            {
+                "_id": ObjectId(anime_id)
+            },
+            {
+                "$set": update_data
+            }
+        )
+
+        return jsonify({
+            "ok": True,
+            "message": "Anime мэдээлэл шинэчлэгдлээ.",
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "ok": False,
+            "error": str(e),
+        }), 500
+
+
+# =========================================================
+# DELETE
+# =========================================================
+
+@app.route(
+    "/api/admin/anime/<anime_id>",
+    methods=["DELETE"],
+)
+def api_anime_delete(anime_id):
+
+    try:
+
+        if not ObjectId.is_valid(anime_id):
+            return jsonify({
+                "ok": False,
+                "error": "Anime ID буруу байна.",
+            }), 400
+
+        anime_object_id = ObjectId(
+            anime_id
+        )
+
+        anime = anime_collection.find_one({
+            "_id": anime_object_id
+        })
+
+        if not anime:
+            return jsonify({
+                "ok": False,
+                "error": "Anime олдсонгүй.",
+            }), 404
+
+        # Энэ anime дээр video байгаа эсэх
+        video_count = videos_collection.count_documents({
+            "anime_id": anime_object_id
+        })
+
+        if video_count > 0:
+            return jsonify({
+                "ok": False,
+                "error": (
+                    f"Энэ Anime дээр {video_count} video байна. "
+                    "Video-уудаа эхлээд устгана уу."
+                ),
+            }), 409
+
+        public_id = anime.get(
+            "image_public_id"
+        )
+
+        if public_id:
+            try:
+                cloudinary.uploader.destroy(
+                    public_id
+                )
+            except Exception as image_error:
+                print(
+                    "Cloudinary delete error:",
+                    image_error
+                )
+
+        anime_collection.delete_one({
+            "_id": anime_object_id
+        })
+
+        return jsonify({
+            "ok": True,
+            "message": "Anime устгагдлаа.",
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "ok": False,
+            "error": str(e),
+        }), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=True)

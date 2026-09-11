@@ -1,0 +1,1651 @@
+<!DOCTYPE html>
+<html lang="mn">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Anime Admin</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+</head>
+
+
+<body class="bg-slate-100 text-slate-800">
+
+
+<div class="max-w-7xl mx-auto px-4 py-8">
+
+
+    <!-- ================================================= -->
+    <!-- HEADER -->
+    <!-- ================================================= -->
+
+    <div class="mb-6">
+
+        <h1 class="text-3xl font-bold">
+            Anime бүртгэл
+        </h1>
+
+        <p class="text-slate-500 mt-1">
+            Anime нэмэх, засах, устгах
+        </p>
+
+    </div>
+
+
+    <!-- ================================================= -->
+    <!-- FORM -->
+    <!-- ================================================= -->
+
+    <div
+        class="
+            bg-white
+            rounded-2xl
+            border
+            border-slate-200
+            shadow-sm
+            p-6
+        "
+    >
+
+        <form
+            id="anime-form"
+            class="space-y-6"
+        >
+
+            <input
+                type="hidden"
+                id="anime-id"
+            >
+
+            <input
+                type="hidden"
+                id="image-url"
+            >
+
+            <input
+                type="hidden"
+                id="image-public-id"
+            >
+
+
+            <div
+                class="
+                    grid
+                    grid-cols-1
+                    lg:grid-cols-3
+                    gap-7
+                "
+            >
+
+
+                <!-- ===================================== -->
+                <!-- POSTER -->
+                <!-- ===================================== -->
+
+                <div>
+
+                    <label
+                        class="
+                            block
+                            text-sm
+                            font-semibold
+                            mb-2
+                        "
+                    >
+                        Poster зураг
+                    </label>
+
+
+                    <div
+                        id="image-drop-zone"
+
+                        class="
+                            relative
+                            min-h-[350px]
+                            border-2
+                            border-dashed
+                            border-slate-300
+                            rounded-2xl
+                            bg-slate-50
+                            hover:bg-blue-50
+                            hover:border-blue-400
+                            transition
+                            cursor-pointer
+                            overflow-hidden
+                            flex
+                            items-center
+                            justify-center
+                        "
+                    >
+
+
+                        <input
+                            id="image-input"
+                            type="file"
+                            accept="image/*"
+                            class="hidden"
+                        >
+
+
+                        <div
+                            id="image-placeholder"
+                            class="
+                                text-center
+                                p-8
+                                pointer-events-none
+                            "
+                        >
+
+                            <div class="text-4xl mb-3">
+                                🖼️
+                            </div>
+
+                            <p class="font-semibold">
+                                Зургаа энд чирж оруулна уу
+                            </p>
+
+                            <p
+                                class="
+                                    text-sm
+                                    text-slate-500
+                                    mt-2
+                                "
+                            >
+                                эсвэл дарж зураг сонгоно
+                            </p>
+
+                        </div>
+
+
+                        <img
+                            id="image-preview"
+                            src=""
+                            alt=""
+                            class="
+                                hidden
+                                absolute
+                                inset-0
+                                w-full
+                                h-full
+                                object-cover
+                            "
+                        >
+
+
+                        <div
+                            id="image-loading"
+
+                            class="
+                                hidden
+                                absolute
+                                inset-0
+                                bg-black/60
+                                text-white
+                                items-center
+                                justify-center
+                                font-semibold
+                            "
+                        >
+                            Upload хийж байна...
+                        </div>
+
+                    </div>
+
+
+                    <button
+                        type="button"
+                        id="remove-image"
+
+                        class="
+                            hidden
+                            mt-3
+                            w-full
+                            border
+                            border-red-200
+                            text-red-600
+                            hover:bg-red-50
+                            rounded-xl
+                            py-2.5
+                            transition
+                        "
+                    >
+                        Зураг арилгах
+                    </button>
+
+                </div>
+
+
+                <!-- ===================================== -->
+                <!-- INFORMATION -->
+                <!-- ===================================== -->
+
+                <div
+                    class="
+                        lg:col-span-2
+                        grid
+                        grid-cols-1
+                        md:grid-cols-2
+                        gap-5
+                    "
+                >
+
+
+                    <!-- NAME -->
+
+                    <div class="md:col-span-2">
+
+                        <label
+                            class="
+                                block
+                                text-sm
+                                font-semibold
+                                mb-2
+                            "
+                        >
+                            Anime нэр *
+                        </label>
+
+                        <input
+                            id="name"
+                            type="text"
+                            required
+
+                            class="
+                                w-full
+                                border
+                                border-slate-300
+                                rounded-xl
+                                px-4
+                                py-3
+                                focus:ring-2
+                                focus:ring-blue-500/20
+                                focus:border-blue-500
+                                outline-none
+                            "
+                        >
+
+                    </div>
+
+
+                    <!-- TYPE -->
+
+                    <div>
+
+                        <label
+                            class="block text-sm font-semibold mb-2"
+                        >
+                            Төрөл
+                        </label>
+
+                        <select
+                            id="anime-type"
+
+                            class="
+                                w-full
+                                border
+                                rounded-xl
+                                px-4
+                                py-3
+                                bg-white
+                            "
+                        >
+                            <option value="tv">TV</option>
+                            <option value="movie">Movie</option>
+                            <option value="ova">OVA</option>
+                            <option value="ona">ONA</option>
+                            <option value="special">Special</option>
+                            <option value="music">Music</option>
+                        </select>
+
+                    </div>
+
+
+                    <!-- STATUS -->
+
+                    <div>
+
+                        <label
+                            class="block text-sm font-semibold mb-2"
+                        >
+                            Төлөв
+                        </label>
+
+                        <select
+                            id="status"
+
+                            class="
+                                w-full
+                                border
+                                rounded-xl
+                                px-4
+                                py-3
+                                bg-white
+                            "
+                        >
+                            <option value="finished">
+                                Finished Airing
+                            </option>
+
+                            <option value="airing">
+                                Currently Airing
+                            </option>
+
+                            <option value="not_yet_aired">
+                                Not Yet Aired
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- EPISODES -->
+
+                    <div>
+
+                        <label
+                            class="block text-sm font-semibold mb-2"
+                        >
+                            Нийт анги
+                        </label>
+
+                        <input
+                            id="episodes"
+                            type="number"
+                            min="0"
+
+                            class="
+                                w-full
+                                border
+                                rounded-xl
+                                px-4
+                                py-3
+                            "
+                        >
+
+                    </div>
+
+
+                    <!-- PREMIERED -->
+
+                    <div>
+
+                        <label
+                            class="block text-sm font-semibold mb-2"
+                        >
+                            Premiered
+                        </label>
+
+                        <input
+                            id="premiered"
+                            type="text"
+                            placeholder="Fall 2026"
+
+                            class="
+                                w-full
+                                border
+                                rounded-xl
+                                px-4
+                                py-3
+                            "
+                        >
+
+                    </div>
+
+
+                    <!-- FROM -->
+
+                    <div>
+
+                        <label
+                            class="block text-sm font-semibold mb-2"
+                        >
+                            Эхэлсэн огноо
+                        </label>
+
+                        <input
+                            id="aired-from"
+                            type="date"
+
+                            class="
+                                w-full
+                                border
+                                rounded-xl
+                                px-4
+                                py-3
+                            "
+                        >
+
+                    </div>
+
+
+                    <!-- TO -->
+
+                    <div>
+
+                        <label
+                            class="block text-sm font-semibold mb-2"
+                        >
+                            Дууссан огноо
+                        </label>
+
+                        <input
+                            id="aired-to"
+                            type="date"
+
+                            class="
+                                w-full
+                                border
+                                rounded-xl
+                                px-4
+                                py-3
+                            "
+                        >
+
+                    </div>
+
+
+                    <!-- STUDIOS -->
+
+                    <div>
+
+                        <label
+                            class="block text-sm font-semibold mb-2"
+                        >
+                            Studios
+                        </label>
+
+                        <input
+                            id="studios"
+                            type="text"
+
+                            class="
+                                w-full
+                                border
+                                rounded-xl
+                                px-4
+                                py-3
+                            "
+                        >
+
+                    </div>
+
+
+                    <!-- BROADCAST -->
+
+                    <div>
+
+                        <label
+                            class="block text-sm font-semibold mb-2"
+                        >
+                            Broadcast
+                        </label>
+
+                        <input
+                            id="broadcast"
+                            type="text"
+
+                            class="
+                                w-full
+                                border
+                                rounded-xl
+                                px-4
+                                py-3
+                            "
+                        >
+
+                    </div>
+
+
+                    <!-- PRODUCERS -->
+
+                    <div>
+
+                        <label
+                            class="block text-sm font-semibold mb-2"
+                        >
+                            Producers
+                        </label>
+
+                        <input
+                            id="producers"
+                            type="text"
+
+                            class="
+                                w-full
+                                border
+                                rounded-xl
+                                px-4
+                                py-3
+                            "
+                        >
+
+                    </div>
+
+
+                    <!-- LICENSORS -->
+
+                    <div>
+
+                        <label
+                            class="block text-sm font-semibold mb-2"
+                        >
+                            Licensors
+                        </label>
+
+                        <input
+                            id="licensors"
+                            type="text"
+
+                            class="
+                                w-full
+                                border
+                                rounded-xl
+                                px-4
+                                py-3
+                            "
+                        >
+
+                    </div>
+
+
+                    <!-- DESCRIPTION -->
+
+                    <div class="md:col-span-2">
+
+                        <label
+                            class="block text-sm font-semibold mb-2"
+                        >
+                            Description
+                        </label>
+
+                        <textarea
+                            id="description"
+                            rows="6"
+
+                            class="
+                                w-full
+                                border
+                                rounded-xl
+                                px-4
+                                py-3
+                            "
+                        ></textarea>
+
+                    </div>
+
+
+                    <!-- ACTIVE -->
+
+                    <div>
+
+                        <label
+                            class="
+                                inline-flex
+                                items-center
+                                gap-3
+                                cursor-pointer
+                            "
+                        >
+
+                            <input
+                                id="active"
+                                type="checkbox"
+                                checked
+                                class="w-5 h-5"
+                            >
+
+                            <span class="font-medium">
+                                Active
+                            </span>
+
+                        </label>
+
+                    </div>
+
+
+                    <!-- BUTTONS -->
+
+                    <div
+                        class="
+                            md:col-span-2
+                            flex
+                            justify-end
+                            gap-3
+                            pt-4
+                        "
+                    >
+
+                        <button
+                            type="button"
+                            id="cancel-edit"
+
+                            class="
+                                hidden
+                                px-6
+                                py-3
+                                border
+                                rounded-xl
+                                hover:bg-slate-50
+                            "
+                        >
+                            Болих
+                        </button>
+
+
+                        <button
+                            type="submit"
+                            id="save-button"
+
+                            class="
+                                px-7
+                                py-3
+                                bg-blue-600
+                                hover:bg-blue-700
+                                active:scale-95
+                                text-white
+                                rounded-xl
+                                font-semibold
+                                transition
+                            "
+                        >
+                            Anime бүртгэх
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </form>
+
+    </div>
+
+
+    <!-- ================================================= -->
+    <!-- LIST -->
+    <!-- ================================================= -->
+
+    <div
+        class="
+            bg-white
+            rounded-2xl
+            border
+            border-slate-200
+            shadow-sm
+            mt-8
+            overflow-hidden
+        "
+    >
+
+        <div
+            class="
+                px-6
+                py-5
+                border-b
+                flex
+                justify-between
+                items-center
+            "
+        >
+
+            <div>
+
+                <h2 class="text-xl font-bold">
+                    Бүртгэлтэй Anime
+                </h2>
+
+                <p
+                    id="anime-count"
+                    class="text-sm text-slate-500"
+                ></p>
+
+            </div>
+
+
+            <button
+                onclick="loadAnimeList()"
+
+                class="
+                    border
+                    px-4
+                    py-2
+                    rounded-xl
+                    hover:bg-slate-50
+                "
+            >
+                ↻ Шинэчлэх
+            </button>
+
+        </div>
+
+
+        <div
+            id="anime-list"
+            class="divide-y"
+        ></div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+const form = document.getElementById('anime-form');
+
+const animeIdInput =
+    document.getElementById('anime-id');
+
+const imageUrlInput =
+    document.getElementById('image-url');
+
+const imagePublicIdInput =
+    document.getElementById('image-public-id');
+
+const imageInput =
+    document.getElementById('image-input');
+
+const dropZone =
+    document.getElementById('image-drop-zone');
+
+const imagePreview =
+    document.getElementById('image-preview');
+
+const imagePlaceholder =
+    document.getElementById('image-placeholder');
+
+const imageLoading =
+    document.getElementById('image-loading');
+
+const removeImageButton =
+    document.getElementById('remove-image');
+
+const cancelEditButton =
+    document.getElementById('cancel-edit');
+
+const saveButton =
+    document.getElementById('save-button');
+
+let animeCache = [];
+
+
+// ========================================================
+// DRAG & DROP
+// ========================================================
+
+dropZone.addEventListener('click', () => {
+    imageInput.click();
+});
+
+
+imageInput.addEventListener('change', () => {
+
+    if (imageInput.files.length) {
+        uploadAnimeImage(
+            imageInput.files[0]
+        );
+    }
+
+});
+
+
+['dragenter', 'dragover'].forEach(eventName => {
+
+    dropZone.addEventListener(
+        eventName,
+        event => {
+
+            event.preventDefault();
+
+            dropZone.classList.add(
+                'border-blue-500',
+                'bg-blue-50'
+            );
+        }
+    );
+
+});
+
+
+['dragleave', 'drop'].forEach(eventName => {
+
+    dropZone.addEventListener(
+        eventName,
+        event => {
+
+            event.preventDefault();
+
+            dropZone.classList.remove(
+                'border-blue-500',
+                'bg-blue-50'
+            );
+        }
+    );
+
+});
+
+
+dropZone.addEventListener('drop', event => {
+
+    const files =
+        event.dataTransfer.files;
+
+    if (!files.length) {
+        return;
+    }
+
+    uploadAnimeImage(
+        files[0]
+    );
+
+});
+
+
+// ========================================================
+// IMAGE UPLOAD
+// ========================================================
+
+async function uploadAnimeImage(file) {
+
+    if (!file.type.startsWith('image/')) {
+        alert('Зөвхөн зураг оруулна.');
+        return;
+    }
+
+    const formData =
+        new FormData();
+
+    formData.append(
+        'image',
+        file
+    );
+
+    imageLoading.classList.remove(
+        'hidden'
+    );
+
+    imageLoading.classList.add(
+        'flex'
+    );
+
+    try {
+
+        const res = await fetch(
+            '/api/admin/anime/image-upload',
+            {
+                method: 'POST',
+                body: formData
+            }
+        );
+
+        const data =
+            await res.json();
+
+        if (!res.ok || !data.ok) {
+            throw new Error(
+                data.error ||
+                'Image upload error'
+            );
+        }
+
+        imageUrlInput.value =
+            data.image_url;
+
+        imagePublicIdInput.value =
+            data.public_id;
+
+        showImage(
+            data.image_url
+        );
+
+    } catch (err) {
+
+        alert(
+            err.message
+        );
+
+    } finally {
+
+        imageLoading.classList.add(
+            'hidden'
+        );
+
+        imageLoading.classList.remove(
+            'flex'
+        );
+    }
+}
+
+
+// ========================================================
+// SHOW IMAGE
+// ========================================================
+
+function showImage(url) {
+
+    if (!url) {
+
+        imagePreview.classList.add(
+            'hidden'
+        );
+
+        imagePlaceholder.classList.remove(
+            'hidden'
+        );
+
+        removeImageButton.classList.add(
+            'hidden'
+        );
+
+        return;
+    }
+
+    imagePreview.src =
+        url;
+
+    imagePreview.classList.remove(
+        'hidden'
+    );
+
+    imagePlaceholder.classList.add(
+        'hidden'
+    );
+
+    removeImageButton.classList.remove(
+        'hidden'
+    );
+}
+
+
+removeImageButton.addEventListener(
+    'click',
+    event => {
+
+        event.stopPropagation();
+
+        imageUrlInput.value = '';
+        imagePublicIdInput.value = '';
+
+        showImage('');
+    }
+);
+
+
+// ========================================================
+// CREATE / UPDATE
+// ========================================================
+
+form.addEventListener(
+    'submit',
+    async event => {
+
+        event.preventDefault();
+
+        const animeId =
+            animeIdInput.value;
+
+        const payload = {
+
+            name:
+                document.getElementById(
+                    'name'
+                ).value,
+
+            description:
+                document.getElementById(
+                    'description'
+                ).value,
+
+            anime_type:
+                document.getElementById(
+                    'anime-type'
+                ).value,
+
+            episodes:
+                document.getElementById(
+                    'episodes'
+                ).value,
+
+            status:
+                document.getElementById(
+                    'status'
+                ).value,
+
+            aired_from:
+                document.getElementById(
+                    'aired-from'
+                ).value,
+
+            aired_to:
+                document.getElementById(
+                    'aired-to'
+                ).value,
+
+            premiered:
+                document.getElementById(
+                    'premiered'
+                ).value,
+
+            broadcast:
+                document.getElementById(
+                    'broadcast'
+                ).value,
+
+            producers:
+                document.getElementById(
+                    'producers'
+                ).value,
+
+            licensors:
+                document.getElementById(
+                    'licensors'
+                ).value,
+
+            studios:
+                document.getElementById(
+                    'studios'
+                ).value,
+
+            active:
+                document.getElementById(
+                    'active'
+                ).checked,
+
+            image_url:
+                imageUrlInput.value,
+
+            image_public_id:
+                imagePublicIdInput.value,
+        };
+
+
+        let url;
+        let method;
+
+
+        if (animeId) {
+
+            url =
+                `/api/admin/anime/${animeId}`;
+
+            method =
+                'PUT';
+
+        } else {
+
+            url =
+                '/api/admin/anime/create';
+
+            method =
+                'POST';
+        }
+
+
+        saveButton.disabled =
+            true;
+
+        saveButton.textContent =
+            'Хадгалж байна...';
+
+
+        try {
+
+            const res =
+                await fetch(
+                    url,
+                    {
+                        method,
+                        headers: {
+                            'Content-Type':
+                                'application/json'
+                        },
+                        body:
+                            JSON.stringify(
+                                payload
+                            )
+                    }
+                );
+
+
+            const data =
+                await res.json();
+
+
+            if (!res.ok || !data.ok) {
+
+                throw new Error(
+                    data.error ||
+                    'Save error'
+                );
+            }
+
+
+            resetForm();
+
+            await loadAnimeList();
+
+
+        } catch (err) {
+
+            alert(
+                err.message
+            );
+
+        } finally {
+
+            saveButton.disabled =
+                false;
+
+            saveButton.textContent =
+                animeIdInput.value
+                ? 'Өөрчлөлт хадгалах'
+                : 'Anime бүртгэх';
+        }
+
+    }
+);
+
+
+// ========================================================
+// LOAD LIST
+// ========================================================
+
+async function loadAnimeList() {
+
+    const container =
+        document.getElementById(
+            'anime-list'
+        );
+
+    container.innerHTML = `
+        <div class="p-8 text-center text-slate-500">
+            Ачаалж байна...
+        </div>
+    `;
+
+
+    try {
+
+        const res =
+            await fetch(
+                '/api/admin/anime'
+            );
+
+        const data =
+            await res.json();
+
+
+        if (!res.ok || !data.ok) {
+            throw new Error(
+                data.error
+            );
+        }
+
+
+        animeCache =
+            data.results || [];
+
+
+        document.getElementById(
+            'anime-count'
+        ).textContent =
+            `${animeCache.length} anime`;
+
+
+        if (!animeCache.length) {
+
+            container.innerHTML = `
+                <div class="p-10 text-center text-slate-500">
+                    Anime бүртгэл алга.
+                </div>
+            `;
+
+            return;
+        }
+
+
+        container.innerHTML =
+            animeCache.map(
+                anime => `
+
+                <div
+                    class="
+                        p-4
+                        flex
+                        items-center
+                        gap-4
+                        hover:bg-slate-50
+                    "
+                >
+
+                    <div
+                        class="
+                            w-16
+                            h-20
+                            rounded-xl
+                            bg-slate-100
+                            overflow-hidden
+                            shrink-0
+                        "
+                    >
+
+                        ${
+                            anime.image_url
+
+                            ? `
+                                <img
+                                    src="${anime.image_url}"
+                                    class="
+                                        w-full
+                                        h-full
+                                        object-cover
+                                    "
+                                >
+                            `
+
+                            : `
+                                <div
+                                    class="
+                                        w-full
+                                        h-full
+                                        flex
+                                        items-center
+                                        justify-center
+                                    "
+                                >
+                                    🖼️
+                                </div>
+                            `
+                        }
+
+                    </div>
+
+
+                    <div class="flex-1 min-w-0">
+
+                        <h3
+                            class="
+                                font-bold
+                                text-lg
+                                truncate
+                            "
+                        >
+                            ${escapeHtml(
+                                anime.name
+                            )}
+                        </h3>
+
+
+                        <div
+                            class="
+                                text-sm
+                                text-slate-500
+                                mt-1
+                                flex
+                                gap-3
+                                flex-wrap
+                            "
+                        >
+
+                            <span>
+                                ${anime.anime_type || '-'}
+                            </span>
+
+                            <span>
+                                ${anime.episodes || 0} анги
+                            </span>
+
+                            <span>
+                                ${anime.status || ''}
+                            </span>
+
+                            <span>
+                                ${
+                                    anime.active
+                                    ? '🟢 Active'
+                                    : '⚪ Inactive'
+                                }
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="flex gap-2">
+
+                        <button
+                            onclick="
+                                editAnime(
+                                    '${anime.id}'
+                                )
+                            "
+
+                            class="
+                                px-4
+                                py-2
+                                bg-blue-50
+                                hover:bg-blue-100
+                                text-blue-700
+                                rounded-xl
+                            "
+                        >
+                            Засах
+                        </button>
+
+
+                        <button
+                            onclick="
+                                deleteAnime(
+                                    '${anime.id}',
+                                    '${escapeJs(anime.name)}'
+                                )
+                            "
+
+                            class="
+                                px-4
+                                py-2
+                                bg-red-50
+                                hover:bg-red-100
+                                text-red-600
+                                rounded-xl
+                            "
+                        >
+                            Устгах
+                        </button>
+
+                    </div>
+
+                </div>
+
+            `
+            ).join('');
+
+
+    } catch (err) {
+
+        container.innerHTML = `
+            <div
+                class="
+                    p-8
+                    text-center
+                    text-red-600
+                "
+            >
+                ${escapeHtml(err.message)}
+            </div>
+        `;
+    }
+}
+
+
+// ========================================================
+// EDIT
+// ========================================================
+
+function editAnime(id) {
+
+    const anime =
+        animeCache.find(
+            item => item.id === id
+        );
+
+    if (!anime) {
+        return;
+    }
+
+
+    animeIdInput.value =
+        anime.id;
+
+
+    document.getElementById(
+        'name'
+    ).value =
+        anime.name || '';
+
+
+    document.getElementById(
+        'description'
+    ).value =
+        anime.description || '';
+
+
+    document.getElementById(
+        'anime-type'
+    ).value =
+        anime.anime_type || 'tv';
+
+
+    document.getElementById(
+        'episodes'
+    ).value =
+        anime.episodes ?? '';
+
+
+    document.getElementById(
+        'status'
+    ).value =
+        anime.status || 'finished';
+
+
+    document.getElementById(
+        'aired-from'
+    ).value =
+        anime.aired_from || '';
+
+
+    document.getElementById(
+        'aired-to'
+    ).value =
+        anime.aired_to || '';
+
+
+    document.getElementById(
+        'premiered'
+    ).value =
+        anime.premiered || '';
+
+
+    document.getElementById(
+        'broadcast'
+    ).value =
+        anime.broadcast || '';
+
+
+    document.getElementById(
+        'producers'
+    ).value =
+        anime.producers || '';
+
+
+    document.getElementById(
+        'licensors'
+    ).value =
+        anime.licensors || '';
+
+
+    document.getElementById(
+        'studios'
+    ).value =
+        anime.studios || '';
+
+
+    document.getElementById(
+        'active'
+    ).checked =
+        anime.active !== false;
+
+
+    imageUrlInput.value =
+        anime.image_url || '';
+
+
+    imagePublicIdInput.value =
+        anime.image_public_id || '';
+
+
+    showImage(
+        anime.image_url
+    );
+
+
+    saveButton.textContent =
+        'Өөрчлөлт хадгалах';
+
+
+    cancelEditButton.classList.remove(
+        'hidden'
+    );
+
+
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+}
+
+
+// ========================================================
+// DELETE
+// ========================================================
+
+async function deleteAnime(
+    id,
+    name
+) {
+
+    if (
+        !confirm(
+            `"${name}" anime-г устгах уу?`
+        )
+    ) {
+        return;
+    }
+
+
+    try {
+
+        const res =
+            await fetch(
+                `/api/admin/anime/${id}`,
+                {
+                    method: 'DELETE'
+                }
+            );
+
+
+        const data =
+            await res.json();
+
+
+        if (!res.ok || !data.ok) {
+
+            throw new Error(
+                data.error ||
+                'Delete error'
+            );
+        }
+
+
+        await loadAnimeList();
+
+
+        if (
+            animeIdInput.value === id
+        ) {
+            resetForm();
+        }
+
+
+    } catch (err) {
+
+        alert(
+            err.message
+        );
+    }
+}
+
+
+// ========================================================
+// RESET
+// ========================================================
+
+function resetForm() {
+
+    form.reset();
+
+    animeIdInput.value = '';
+
+    imageUrlInput.value = '';
+
+    imagePublicIdInput.value = '';
+
+    document.getElementById(
+        'active'
+    ).checked = true;
+
+    showImage('');
+
+    saveButton.textContent =
+        'Anime бүртгэх';
+
+    cancelEditButton.classList.add(
+        'hidden'
+    );
+}
+
+
+cancelEditButton.addEventListener(
+    'click',
+    resetForm
+);
+
+
+// ========================================================
+// ESCAPE
+// ========================================================
+
+function escapeHtml(value) {
+
+    const div =
+        document.createElement('div');
+
+    div.textContent =
+        value || '';
+
+    return div.innerHTML;
+}
+
+
+function escapeJs(value) {
+
+    return String(
+        value || ''
+    )
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'");
+}
+
+
+// ========================================================
+// INIT
+// ========================================================
+
+loadAnimeList();
+
+</script>
+
+
+</body>
+</html>

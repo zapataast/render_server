@@ -19,7 +19,10 @@
       <div><span>Email</span><b>{{user.email or "Оруулаагүй"}}</b></div>
       <div><span>Төрсөн огноо</span><b>{{user.birthdate or "Оруулаагүй"}}</b></div>
     </div>
-    <a class="btnlink" href="{{url_for('profile')}}">Profile засах</a>{% if is_admin_user %}<a class="btnlink" style="margin-left:8px;background:#242633" href="{{url_for('uploader_page')}}">Admin uploader</a>{% endif %}
+    <a class="btnlink" href="{{url_for('profile')}}">Profile засах</a>{% if is_admin_user %}
+    <a class="btnlink" style="margin-left:8px;background:#242633" href="{{url_for('uploader_page')}}">Admin uploader</a>
+    <a class="btnlink" style="margin-left:8px;background:#242633" href="{{url_for('anime_create_page')}}">Anime Create</a>
+    {% endif %}
   </div>
 </main>
 {% endblock %}

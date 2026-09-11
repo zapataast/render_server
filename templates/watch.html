@@ -1,16 +1,22 @@
 <!DOCTYPE html>
 <html lang="mn">
+
 <head>
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
     >
+
+    <title>
+        {{ video.title or "Anime Player" }}
+    </title>
+
     <link
         rel="stylesheet"
         href="https://cdn.plyr.io/3.7.8/plyr.css"
     />
-    <title>Anime Player</title>
 
     <style>
         * {
@@ -42,21 +48,22 @@
             background: white;
             border-radius: 20px;
             padding: 24px;
+
             box-shadow:
-                0 10px 35px rgba(0, 0, 0, 0.07);
+                0 10px 35px
+                rgba(0, 0, 0, 0.07);
         }
 
         .player-box {
             width: 100%;
-            aspect-ratio: 16 / 9;
             background: #111827;
             border-radius: 16px;
+            overflow: hidden;
+        }
 
-            display: flex;
-            align-items: center;
-            justify-content: center;
-
-            color: white;
+        .player-box video {
+            width: 100%;
+            aspect-ratio: 16 / 9;
         }
 
         h1 {
@@ -67,6 +74,7 @@
         .meta {
             color: #6b7280;
         }
+
         .plyr {
             border-radius: 16px;
             overflow: hidden;
@@ -81,11 +89,27 @@
             height: 70px;
         }
     </style>
+
 </head>
+
 
 <body>
 
 <div class="page">
+
+    {% if anime %}
+
+    <a
+        href="{{ url_for(
+            'anime_detail',
+            anime_id=anime.id
+        ) }}"
+        class="back"
+    >
+        ← {{ anime.name }} руу буцах
+    </a>
+
+    {% else %}
 
     <a
         href="/"
@@ -94,63 +118,94 @@
         ← Буцах
     </a>
 
+    {% endif %}
+
+
     <div class="player-card">
 
         <div class="player-box">
+
             <video
+                id="player"
                 controls
                 controlsList="nodownload noremoteplayback"
                 disablePictureInPicture
                 playsinline
                 preload="metadata"
-                src="{{ url_for('stream_video', video_id=video.id) }}"
                 oncontextmenu="return false;"
             >
+
+                <source
+                    src="{{ url_for(
+                        'stream_video',
+                        video_id=video.id
+                    ) }}"
+                    type="video/mp4"
+                >
+
             </video>
-            </video>
+
         </div>
 
+
         <h1>
-            Video #{{ video_id }}
+            {{ video.title or "Video" }}
         </h1>
 
+
         <div class="meta">
-            Player бэлдэж байна...
+
+            {% if video.episode_number %}
+
+                {{ video.episode_number }}-р анги
+
+            {% endif %}
+
+
+            {% if video.duration %}
+
+                • {{ (video.duration / 60)|round(1) }} минут
+
+            {% endif %}
+
         </div>
 
     </div>
 
 </div>
 
-</body>
 
-<link
-    rel="stylesheet"
-    href="https://cdn.plyr.io/3.7.8/plyr.css"
-/>
+<script
+    src="https://cdn.plyr.io/3.7.8/plyr.js"
+></script>
 
-
-<script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
 
 <script>
-    const player = new Plyr('#player', {
-        controls: [
-            'play-large',
-            'rewind',
-            'play',
-            'fast-forward',
-            'progress',
-            'current-time',
-            'duration',
-            'mute',
-            'volume',
-            'settings',
-            'fullscreen'
-        ],
 
-        settings: [
-            'speed'
-        ]
-    });
+    const player = new Plyr(
+        '#player',
+        {
+            controls: [
+                'play-large',
+                'rewind',
+                'play',
+                'fast-forward',
+                'progress',
+                'current-time',
+                'duration',
+                'mute',
+                'volume',
+                'settings',
+                'fullscreen'
+            ],
+
+            settings: [
+                'speed'
+            ]
+        }
+    );
+
 </script>
+
+</body>
 </html>
