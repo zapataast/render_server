@@ -12,6 +12,39 @@ from dotenv import load_dotenv
 from pymongo import MongoClient
 
 
+def verify_msg_log(uid,verify_url=None):
+    import requests
+
+    url = verify_url+ f"/sessions/{uid}"
+
+    response = requests.get(url,timeout=5)
+
+    print(response.json())
+    if response.status_code in (200, 201):
+        return response.json()
+    else:
+        return {}
+def verify_create_session(phone="85963616",code = None , verify_url=None,api_key_verify=None,ref = None ):
+
+    import secrets
+    import string
+    if code is None:
+        code = ''.join(secrets.choice(string.digits) for _ in range(4))
+    payload = {
+        "phone": phone,
+        "text": code
+    }
+    if ref:
+        payload['responseSms'] = 'Verification received: loginname: ' + ref
+    headers = {
+        "content-type": "application/json",
+        "Authorization": f"Bearer {api_key_verify}"
+    }
+    url = verify_url+ "/sessions"
+    r = requests.post(url, json=payload, headers=headers,timeout=10)
+    return r.json();
+
+
 def send_anime_info_to_mongodb(metadata,anime_collection):
     try:
         now = datetime.now(timezone.utc)

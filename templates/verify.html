@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Утас баталгаажуулах</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+</head>
+
+<body
+    class="
+        min-h-screen
+        bg-slate-50
+        flex
+        items-center
+        justify-center
+        px-4
+    "
+>
+
+<div
+    class="
+        w-full
+        max-w-lg
+        bg-white
+        rounded-3xl
+        shadow-xl
+        shadow-slate-200/60
+        border
+        border-slate-100
+        p-8
+    "
+>
+
+    <div class="text-center">
+
+        <div
+            id="status-icon"
+            class="
+                mx-auto
+                w-16
+                h-16
+                rounded-full
+                bg-indigo-50
+                flex
+                items-center
+                justify-center
+                mb-5
+            "
+        >
+
+            <svg
+                class="
+                    w-8
+                    h-8
+                    text-indigo-600
+                    animate-pulse
+                "
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+            >
+                <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="
+                        M8 10h.01
+                        M12 10h.01
+                        M16 10h.01
+                        M9 16H5
+                        a2 2 0 01-2-2
+                        V6
+                        a2 2 0 012-2
+                        h14
+                        a2 2 0 012 2
+                        v8
+                        a2 2 0 01-2 2
+                        h-5
+                        l-5 4
+                        v-4z
+                    "
+                />
+            </svg>
+
+        </div>
+
+
+        <h1
+            class="
+                text-2xl
+                font-bold
+                text-slate-900
+            "
+        >
+            SMS баталгаажуулалт
+        </h1>
+
+
+        <p
+            class="
+                mt-2
+                text-sm
+                text-slate-500
+            "
+        >
+            {{ phone }} дугаарыг баталгаажуулна уу.
+        </p>
+
+    </div>
+
+
+    <div
+        class="
+            mt-7
+            rounded-2xl
+            bg-slate-50
+            border
+            border-slate-100
+            p-5
+        "
+    >
+
+        <p
+            class="
+                text-sm
+                text-slate-600
+                leading-6
+            "
+        >
+            {{ display_instruction }}
+        </p>
+
+    </div>
+
+
+    <div
+        class="
+            mt-5
+            grid
+            grid-cols-2
+            gap-3
+        "
+    >
+
+        <div
+            class="
+                rounded-xl
+                border
+                border-slate-200
+                p-4
+                text-center
+            "
+        >
+
+            <div
+                class="
+                    text-xs
+                    text-slate-400
+                    mb-1
+                "
+            >
+                Илгээх дугаар
+            </div>
+
+            <div
+                class="
+                    text-xl
+                    font-bold
+                    text-slate-800
+                "
+            >
+                {{ shortcode }}
+            </div>
+
+        </div>
+
+
+        <div
+            class="
+                rounded-xl
+                border
+                border-slate-200
+                p-4
+                text-center
+            "
+        >
+
+            <div
+                class="
+                    text-xs
+                    text-slate-400
+                    mb-1
+                "
+            >
+                Илгээх код
+            </div>
+
+            <div
+                class="
+                    text-xl
+                    font-bold
+                    text-indigo-600
+                "
+            >
+                {{ text }}
+            </div>
+
+        </div>
+
+    </div>
+
+
+    {% if sms_uri %}
+
+    <a
+        href="{{ sms_uri }}"
+
+        class="
+            block
+            mt-5
+            w-full
+            rounded-xl
+            bg-indigo-600
+            text-white
+            py-3.5
+            font-semibold
+            text-center
+
+            hover:bg-indigo-700
+            active:scale-[0.98]
+
+            transition
+        "
+    >
+        SMS илгээх
+    </a>
+
+    {% endif %}
+
+
+    <div
+        id="status-area"
+        class="
+            mt-6
+            rounded-xl
+            bg-amber-50
+            border
+            border-amber-100
+            px-4
+            py-3
+            text-sm
+            text-amber-700
+            flex
+            items-center
+            gap-3
+        "
+    >
+
+        <div
+            class="
+                w-4
+                h-4
+                border-2
+                border-amber-500
+                border-t-transparent
+                rounded-full
+                animate-spin
+            "
+        ></div>
+
+        <span id="status-text">
+            SMS баталгаажуулалт хүлээж байна...
+        </span>
+
+    </div>
+
+
+    <button
+        type="button"
+        onclick="checkVerifyStatus()"
+
+        class="
+            mt-4
+            w-full
+            rounded-xl
+            border
+            border-slate-200
+            bg-white
+            py-3
+            text-sm
+            font-semibold
+            text-slate-700
+
+            hover:bg-slate-50
+
+            transition
+        "
+    >
+        Одоо шалгах
+    </button>
+
+
+    <a
+        href="/login"
+
+        class="
+            block
+            text-center
+            mt-5
+            text-sm
+            text-slate-400
+            hover:text-slate-600
+        "
+    >
+        ← Утасны дугаараа өөрчлөх
+    </a>
+
+</div>
+
+
+<script>
+
+    const pendingId = "{{ pending_id }}";
+
+    let checking = false;
+
+    let stopped = false;
+
+
+    async function checkVerifyStatus() {
+
+        if (checking || stopped) {
+            return;
+        }
+
+        checking = true;
+
+        try {
+
+            const response = await fetch(
+                `/auth/status/${pendingId}`,
+                {
+                    method: "GET",
+                    headers: {
+                        "Accept": "application/json"
+                    },
+                    cache: "no-store"
+                }
+            );
+
+            const data = await response.json();
+
+
+            console.log(
+                "VERIFY STATUS:",
+                data
+            );
+
+
+            // ==========================================
+            // VERIFIED
+            // ==========================================
+
+            if (
+                data.success === true &&
+                data.status === "VERIFIED"
+            ) {
+
+                stopped = true;
+
+                const area =
+                    document.getElementById(
+                        "status-area"
+                    );
+
+                area.className = `
+                    mt-6
+                    rounded-xl
+                    bg-emerald-50
+                    border
+                    border-emerald-100
+                    px-4
+                    py-3
+                    text-sm
+                    text-emerald-700
+                `;
+
+                area.innerHTML = `
+                    ✓ Баталгаажуулалт амжилттай.
+                    Нэвтэрч байна...
+                `;
+
+
+                setTimeout(() => {
+
+                    window.location.href =
+                        data.redirect || "/";
+
+                }, 600);
+
+                return;
+            }
+
+
+            // ==========================================
+            // EXPIRED
+            // ==========================================
+
+            if (data.status === "EXPIRED") {
+
+                stopped = true;
+
+                document.getElementById(
+                    "status-area"
+                ).innerHTML =
+                    "Баталгаажуулах хугацаа дууссан.";
+
+                return;
+            }
+
+
+            // ==========================================
+            // PENDING
+            // ==========================================
+
+            document.getElementById(
+                "status-text"
+            ).textContent =
+                "SMS баталгаажуулалт хүлээж байна...";
+
+        }
+        catch (error) {
+
+            console.error(
+                "VERIFY ERROR:",
+                error
+            );
+
+        }
+        finally {
+
+            checking = false;
+
+        }
+
+    }
+
+
+    // Эхний шалгалт
+    checkVerifyStatus();
+
+
+    // 3 секунд тутам VERIFY.MN шалгана.
+    const verifyTimer = setInterval(
+        () => {
+
+            if (stopped) {
+
+                clearInterval(
+                    verifyTimer
+                );
+
+                return;
+            }
+
+            checkVerifyStatus();
+
+        },
+        6000
+    );
+
+</script>
+
+</body>
+</html>

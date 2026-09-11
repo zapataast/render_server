@@ -8,38 +8,100 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_pymongo import PyMongo
 from pymongo.errors import DuplicateKeyError
 from werkzeug.security import generate_password_hash, check_password_hash
-
+from datetime import datetime, timezone
 import requests
+from pymongo import MongoClient, ReturnDocument
 from uploader import upload_video_to_telegram
 from utils import *
 import cloudinary
 import cloudinary.uploader
 import mimetypes
 import re
-
+from datetime import datetime, timedelta,date
 from flask import (
     Response,
     abort,
     request,
     stream_with_context,
 )
-
+from pymongo.errors import DuplicateKeyError
 from uploader import (
     telegram_range_stream,
 )
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/static')
+
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
+def utcnow():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+# set session directory inside the same folder
+SESSION_DIR = os.path.join(BASE_DIR, 'flask_session')
+
+# create it if missing
+os.makedirs(SESSION_DIR, exist_ok=True)
+app.config['SESSION_TYPE'] = 'filesystem'  # Store session data on the server
+app.config['SESSION_PERMANENT'] = True  # Keep session even after closing browser
+app.config['SESSION_FILE_DIR'] = SESSION_DIR # Folder to store session data
+app.config['SESSION_FILE_THRESHOLD'] = 800   # 500 is default
+app.config['SESSION_USE_SIGNER'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=2)
+app.config['MAX_CONTENT_LENGTH'] = 12 * 1024 * 1024  # 10 MB limit
+app.config['SECRET_KEY'] = '_LIFE_OF_Happieness'
+
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "change-me")
 app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://localhost:27017/render_server")
 PROFILE_IMAGE_MAX_MB = 5
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "anime_db")
-
+api_key_verify=os.getenv("api_key_verify", "")
+verify_url=os.getenv("verify_url",'')
 mongo_client = MongoClient(os.getenv("MONGO_URI"))
 mongo_db = mongo_client[MONGO_DB_NAME]
+# * MONGO DB COLLECTIONS >>--- --- -- -> >>--- --- -- -> >>--- --- -- -> >>--- --- -- -> >>--- --- -- -> >>--- --- -- -> >>--- --- -- -> 
+
 videos_collection = mongo_db["videos"]
 anime_collection = mongo_db["anime"]
+users_collection = mongo_db.users
+genres_collection = mongo_db.genres
 
+genres_collection.create_index(
+    "name",
+    unique=True,
+)
+
+pending_auth_collection = mongo_db.pending_auth
+# Утасны дугаар давхардахгүй.
+users_collection.create_index(
+    "phone",
+    unique=True,
+)
+pending_auth_collection.create_index(
+    "expires_at",
+    expireAfterSeconds=0,
+)
+def parse_iso_datetime(value):
+    if not value:
+        return None
+
+    try:
+        return datetime.fromisoformat(
+            value.replace(
+                "Z",
+                "+00:00",
+            )
+        )
+    except Exception:
+        return None
+
+
+def valid_phone(phone):
+    return bool(
+        re.fullmatch(
+            r"\d{8}",
+            phone,
+        )
+    )
 metadata = {
     "anime_id": "123",
     "title": "Episode 1",
@@ -85,6 +147,10 @@ else:
 
 ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 def serialize_anime(anime):
+    genre_ids = anime.get(
+        "genre_ids",
+        []
+    )
     return {
         "id": str(anime["_id"]),
         "name": anime.get("name", ""),
@@ -101,7 +167,10 @@ def serialize_anime(anime):
             if anime.get("aired_from")
             else ""
         ),
-
+        "genre_ids": [
+            str(genre_id)
+            for genre_id in genre_ids
+        ],
         "aired_to": (
             anime.get("aired_to").strftime("%Y-%m-%d")
             if anime.get("aired_to")
@@ -127,13 +196,23 @@ with app.app_context():
 
 
 def normalize_phone(phone):
-    digits = re.sub(r"\D", "", str(phone or ""))
-    if len(digits) == 8:
-        return "+976" + digits
-    if len(digits) == 11 and digits.startswith("976"):
-        return "+" + digits
-    return ""
+    import re
 
+    phone = str(phone or "").strip()
+
+    # +, space, -, () гэх мэт бүгдийг авна
+    phone = re.sub(r"\D", "", phone)
+
+    # +97685963616 -> 97685963616
+    # 97685963616 -> 85963616
+    if phone.startswith("976") and len(phone) == 11:
+        phone = phone[3:]
+
+    # Mongo-д хадгалах final format
+    if len(phone) != 8:
+        return None
+
+    return f"+976{phone}"
 
 def display_phone(phone):
     return phone[4:] if phone and phone.startswith("+976") else (phone or "")
@@ -184,7 +263,7 @@ def admin_required(fn):
     return wrapper
 
 VIDEO_INDEX = {}
-
+import uuid
 
 def build_video_index(anime_list):
     global VIDEO_INDEX
@@ -203,6 +282,20 @@ def build_video_index(anime_list):
             VIDEO_INDEX[int(video["id"])] = video
 from flask import abort, render_template
 
+def get_current_user():
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return None
+
+    try:
+        return users_collection.find_one(
+            {
+                "_id": ObjectId(user_id),
+            }
+        )
+    except Exception:
+        return None
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -243,22 +336,706 @@ def register():
     return render_template("register.html")
 
 
-@app.route("/login", methods=["GET", "POST"])
+@app.route("/login")
 def login():
-    if request.method == "POST":
-        phone = normalize_phone(request.form.get("phone"))
-        password = request.form.get("password") or ""
-        user = mongo.db.users.find_one({"phone": phone}) if phone else None
 
-        if not user or not check_password_hash(user.get("password_hash", ""), password):
-            flash("Утасны дугаар эсвэл нууц үг буруу байна.", "danger")
-            return render_template("login.html", phone=display_phone(phone))
+    if get_current_user():
+        return redirect(
+            url_for("home")
+        )
+
+    return render_template(
+        "login.html"
+    )
+
+@app.route(
+    "/auth/start",
+    methods=["POST"],
+)
+def auth_start():
+
+    raw_phone = request.form.get("phone")
+
+    phone = normalize_phone(raw_phone)
+
+    if not phone:
+        return render_template(
+            "login.html",
+            error="Утасны дугаар буруу байна.",
+            phone=raw_phone,
+        )
+
+    # +97685963616 -> 85963616
+    verify_phone = phone[4:]
+    print("🐍 File: render_server/app.py | Line: 352 | auth_start ~ verify_phone",verify_phone)
+
+    try:
+
+        # ====================================================
+        # VERIFY.MN CREATE SESSION
+        # ====================================================
+
+        result = verify_create_session(
+            verify_phone,
+            None,
+            verify_url,
+            api_key_verify,
+        )
+
+
+    except Exception as e:
+
+        print(
+            "VERIFY CREATE ERROR:",
+            e,
+        )
+
+        return render_template(
+            "login.html",
+            error="Баталгаажуулах хүсэлт үүсгэж чадсангүй.",
+            phone=phone,
+        )
+
+    if not isinstance(result, dict):
+
+        return render_template(
+            "login.html",
+            error="VERIFY.MN буруу хариу буцаалаа.",
+            phone=phone,
+        )
+
+    verify_session_id = result.get(
+        "sessionId"
+    )
+    if app.debug == True:
+        verify_session_id = '98590f15-ffdb-4c7f-bf8b-ae3478938785'
+    if not verify_session_id:
+
+        return render_template(
+            "login.html",
+            error=(
+                result.get("message")
+                or
+                "Session ID олдсонгүй."
+            ),
+            phone=phone,
+        )
+
+    # Browser-д VERIFY sessionId өгөхгүй.
+    pending_id = str(
+        uuid.uuid4()
+    )
+
+    expires_at = parse_iso_datetime(
+        result.get("expiresAt")
+    )
+
+    if not expires_at:
+
+        # API expiry өгөөгүй тохиолдолд
+        # production дээр өөр timeout тавьж болно.
+        expires_at = utcnow()
+
+    pending_auth_collection.insert_one(
+        {
+            "_id": pending_id,
+
+            "phone": phone,
+
+            # VERIFY.MN-ийн session id
+            "verify_session_id": verify_session_id,
+
+            "shortcode": result.get(
+                "shortcode"
+            ),
+
+            "text": result.get(
+                "text"
+            ),
+
+            "sms_uri": result.get(
+                "smsUri"
+            ),
+
+            "display_instruction": result.get(
+                "displayInstruction"
+            ),
+
+            "expires_at": expires_at,
+
+            "created_at": utcnow(),
+
+            "status": "PENDING",
+
+            "last_verify_status": None,
+        }
+    )
+
+    return redirect(
+        url_for(
+            "verify_page",
+            pending_id=pending_id,
+        )
+    )
+
+@app.route(
+    "/auth/verify/<pending_id>"
+)
+def verify_page(pending_id):
+
+    pending = pending_auth_collection.find_one(
+        {
+            "_id": pending_id,
+        }
+    )
+
+    if not pending:
+
+        return redirect(
+            url_for("login")
+        )
+
+    if pending.get("status") == "VERIFIED":
+
+        if get_current_user():
+
+            return redirect(
+                url_for("home")
+            )
+
+    expires_at = pending.get(
+        "expires_at"
+    )
+
+    if (
+        expires_at
+        and
+        expires_at <= utcnow()
+    ):
+
+        pending_auth_collection.update_one(
+            {
+                "_id": pending_id,
+            },
+            {
+                "$set": {
+                    "status": "EXPIRED",
+                }
+            },
+        )
+
+        return render_template(
+            "login.html",
+            error=(
+                "Баталгаажуулах хугацаа дууссан. "
+                "Дахин оролдоно уу."
+            ),
+        )
+
+    return render_template(
+        "verify.html",
+
+        pending_id=pending_id,
+
+        phone=pending.get(
+            "phone"
+        ),
+
+        shortcode=pending.get(
+            "shortcode"
+        ),
+
+        text=pending.get(
+            "text"
+        ),
+
+        sms_uri=pending.get(
+            "sms_uri"
+        ),
+
+        display_instruction=pending.get(
+            "display_instruction"
+        ),
+
+        expires_at=(
+            expires_at.isoformat()
+            if expires_at
+            else ""
+        ),
+    )
+
+
+# ============================================================
+# CHECK VERIFY STATUS
+# ============================================================
+
+@app.route(
+    "/auth/status/<pending_id>",
+    methods=["GET"],
+)
+def auth_status(pending_id):
+
+    pending = pending_auth_collection.find_one(
+        {
+            "_id": pending_id,
+        }
+    )
+
+    if not pending:
+
+        return jsonify(
+            {
+                "success": False,
+                "status": "NOT_FOUND",
+                "message": "Login хүсэлт олдсонгүй.",
+            }
+        ), 404
+
+    if pending.get("status") == "EXPIRED":
+
+        return jsonify(
+            {
+                "success": False,
+                "status": "EXPIRED",
+            }
+        )
+
+    expires_at = pending.get(
+        "expires_at"
+    )
+
+    if (
+        expires_at
+        and
+        expires_at <= utcnow()
+    ):
+
+        pending_auth_collection.update_one(
+            {
+                "_id": pending_id,
+            },
+            {
+                "$set": {
+                    "status": "EXPIRED",
+                }
+            },
+        )
+
+        return jsonify(
+            {
+                "success": False,
+                "status": "EXPIRED",
+                "message": "Хугацаа дууссан.",
+            }
+        )
+
+    verify_session_id = pending.get(
+        "verify_session_id"
+    )
+    #print("🐍 File: render_server/app.py | Line: 621 | auth_status ~ verify_session_id",verify_session_id)
+
+    if not verify_session_id:
+
+        return jsonify(
+            {
+                "success": False,
+                "status": "INVALID",
+            }
+        ), 400
+
+    try:
+
+        # ====================================================
+        # VERIFY.MN STATUS CHECK
+        # ====================================================
+
+        result = verify_msg_log(
+            verify_session_id,
+            verify_url,
+        )
+
+        # Хэрэв чиний function:
+        #
+        # verify_msg_log(sessionId)
+        #
+        # гэсэн ганц argument авдаг бол дээрхийг:
+        #
+        # result = verify_msg_log(
+        #     verify_session_id
+        # )
+        #
+        # болгоно.
+        if app.debug == True:
+            result = {'sessionId': '98590f15-ffdb-4c7f-bf8b-ae3478938785', 'sessionStatus': 'VERIFIED', 'callbackStatus': 'SENT', 'verifiedAt': None, 'expiresAt': '2026-09-11T04:15:45.000Z'}
+        print(
+            "VERIFY STATUS >>>>>>>>>>>>>>",
+            result,
+        )
+
+    except Exception as e:
+
+        print(
+            "VERIFY STATUS ERROR:",
+            e,
+        )
+
+        return jsonify(
+            {
+                "success": False,
+                "status": "ERROR",
+                "message": "VERIFY.MN шалгалт амжилтгүй.",
+            }
+        ), 500
+
+    if not isinstance(result, dict):
+
+        return jsonify(
+            {
+                "success": False,
+                "status": "ERROR",
+            }
+        )
+
+    verify_status = result.get(
+        "sessionStatus"
+    )
+
+    pending_auth_collection.update_one(
+        {
+            "_id": pending_id,
+        },
+        {
+            "$set": {
+                "last_verify_status": verify_status,
+                "last_checked_at": utcnow(),
+            }
+        },
+    )
+
+    # ========================================================
+    # NOT VERIFIED YET
+    # ========================================================
+
+    if verify_status != "VERIFIED":
+
+        return jsonify(
+            {
+                "success": False,
+                "verified": False,
+                "status": (
+                    verify_status
+                    or
+                    "PENDING"
+                ),
+            }
+        )
+
+    # ========================================================
+    # ATOMIC CONSUME
+    # ========================================================
+    #
+    # Нэг VERIFY session-ээр олон browser login хийхээс хамгаална.
+    # ========================================================
+
+    consumed = pending_auth_collection.find_one_and_update(
+        {
+            "_id": pending_id,
+            "status": "PENDING",
+        },
+        {
+            "$set": {
+                "status": "VERIFIED",
+                "verified_at": utcnow(),
+            }
+        },
+        return_document=ReturnDocument.AFTER,
+    )
+    
+
+    if not consumed:
+
+        return jsonify(
+            {
+                "success": False,
+                "status": "ALREADY_USED",
+            }
+        ), 409
+
+    phone = consumed.get(
+        "phone"
+    )
+
+    now = utcnow()
+
+    # ========================================================
+    # CREATE / UPDATE USER
+    # ========================================================
+
+    user = users_collection.find_one(
+        {
+            "phone": phone,
+        }
+    )
+    # ========================================================
+    # FLASK LOGIN SESSION
+    # ========================================================
+    if user:
+        session.clear()
+
+        session.permanent = True
+
+        session["user_id"] = str(
+            user["_id"]
+        )
+
+        session["phone"] = phone
+
+        session["authenticated"] = True
+
+        users_collection.update_one(
+            {
+                "_id": user["_id"],
+            },
+            {
+                "$set": {
+                    "last_login_at": utcnow(),
+                }
+            },
+        )
+        return jsonify(
+            {
+                "success": True,
+                "verified": True,
+                "status": "VERIFIED",
+                "redirect": url_for("home"),
+            }
+        )
+    # ========================================================
+    # 2. ШИНЭ ХЭРЭГЛЭГЧ
+    # ========================================================
+    #
+    # ОДООХОНДОО users collection-д үүсгэхгүй.
+    # VERIFY болсон утсыг session-д түр хадгална.
+    # ========================================================
+
+    session.clear()
+
+    session["phone_verified"] = True
+    session["verified_phone"] = phone
+    session["registration_pending"] = True
+
+    return jsonify(
+        {
+            "success": True,
+            "verified": True,
+            "status": "VERIFIED",
+            "is_new_user": True,
+            "redirect": url_for(
+                "setup_nickname"
+            ),
+        }
+    )
+@app.route(
+    "/setup-nickname",
+    methods=["GET", "POST"],
+)
+def setup_nickname():
+
+    # =====================================================
+    # ЗӨВХӨН VERIFY ХИЙСЭН ШИНЭ USER ОРОХ ЭРХТЭЙ
+    # =====================================================
+
+    if not session.get("phone_verified"):
+
+        return redirect(
+            url_for("login")
+        )
+
+    if not session.get("registration_pending"):
+
+        return redirect(
+            url_for("login")
+        )
+
+
+    phone = session.get(
+        "verified_phone"
+    )
+
+    if not phone:
 
         session.clear()
-        session["user_id"] = str(user["_id"])
-        return redirect(url_for("dashboard"))
 
-    return render_template("login.html")
+        return redirect(
+            url_for("login")
+        )
+
+
+    # =====================================================
+    # ДАХИН ШАЛГАНА
+    # =====================================================
+
+    existing_user = users_collection.find_one(
+        {
+            "phone": phone,
+        }
+    )
+
+    if existing_user:
+
+        # Хэрэв зэрэгцээ request-ээр user аль хэдийн үүссэн бол
+        # шууд login болгоно.
+
+        session.clear()
+
+        session.permanent = True
+
+        session["user_id"] = str(
+            existing_user["_id"]
+        )
+
+        session["phone"] = phone
+
+        session["nickname"] = existing_user.get(
+            "nickname"
+        )
+
+        session["authenticated"] = True
+
+        return redirect(
+            url_for("home")
+        )
+
+
+    # =====================================================
+    # GET
+    # =====================================================
+
+    if request.method == "GET":
+
+        return render_template(
+            "setup_nickname.html",
+            phone=phone,
+        )
+
+
+    # =====================================================
+    # POST
+    # =====================================================
+
+    nickname = str(
+        request.form.get("nickname")
+        or ""
+    ).strip()
+
+
+    # =====================================================
+    # VALIDATION
+    # =====================================================
+
+    if len(nickname) < 3:
+
+        return render_template(
+            "setup_nickname.html",
+            phone=phone,
+            nickname=nickname,
+            error="Nickname хамгийн багадаа 3 тэмдэгт байна.",
+        )
+
+
+    if len(nickname) > 30:
+
+        return render_template(
+            "setup_nickname.html",
+            phone=phone,
+            nickname=nickname,
+            error="Nickname хамгийн ихдээ 30 тэмдэгт байна.",
+        )
+
+
+    # =====================================================
+    # NICKNAME ДАВХАРДСАН ЭСЭХ
+    # =====================================================
+
+    import re
+
+    nickname_exists = users_collection.find_one(
+        {
+            "nickname": {
+                "$regex": (
+                    "^"
+                    + re.escape(nickname)
+                    + "$"
+                ),
+                "$options": "i",
+            }
+        }
+    )
+
+    if nickname_exists:
+
+        return render_template(
+            "setup_nickname.html",
+            phone=phone,
+            nickname=nickname,
+            error="Энэ nickname аль хэдийн ашиглагдаж байна.",
+        )
+
+
+    # =====================================================
+    # USER CREATE
+    # =====================================================
+
+    now = utcnow()
+
+    new_user = {
+        "phone": phone,
+        "nickname": nickname,
+
+        # Password шаардлагагүй.
+        # password_hash field үүсгэхгүй.
+
+        "created_at": now,
+        "last_login_at": now,
+
+        "is_active": True,
+
+        "auth_method": "phone",
+    }
+
+
+    result = users_collection.insert_one(
+        new_user
+    )
+
+
+    # =====================================================
+    # LOGIN SESSION
+    # =====================================================
+
+    session.clear()
+
+    session.permanent = True
+
+    session["user_id"] = str(
+        result.inserted_id
+    )
+
+    session["phone"] = phone
+
+    session["nickname"] = nickname
+
+    session["authenticated"] = True
+
+    session["authenticated_at"] = (
+        now.isoformat()
+    )
+
+
+    return redirect(
+        url_for("home")
+    )
+
 
 
 @app.get("/logout")
@@ -691,6 +1468,35 @@ def anime_detail(anime_id):
             1
         )
     )
+    genre_ids = anime.get(
+        "genre_ids",
+        []
+    )
+
+    genres = []
+
+    if genre_ids:
+
+        genres = list(
+            genres_collection.find(
+                {
+                    "_id": {
+                        "$in": genre_ids
+                    }
+                }
+            ).sort(
+                "name",
+                1
+            )
+        )
+
+        for genre in genres:
+            genre["id"] = str(
+                genre["_id"]
+            )
+
+
+    anime["genres"] = genres
 
     for video in videos:
         video["id"] = str(video["_id"])
@@ -937,11 +1743,65 @@ def anime_image_upload():
 # =========================================================
 # PAGE
 # =========================================================
+def prepare_genre_ids(values):
 
+    if not isinstance(values, list):
+        return []
+
+    object_ids = []
+
+    for value in values:
+
+        if not ObjectId.is_valid(value):
+            continue
+
+        genre_id = ObjectId(value)
+
+        if genre_id not in object_ids:
+            object_ids.append(
+                genre_id
+            )
+
+    if not object_ids:
+        return []
+
+    # DB дээр үнэхээр байгаа genre-үүдийг л авна
+    valid_genres = genres_collection.find(
+        {
+            "_id": {
+                "$in": object_ids
+            }
+        },
+        {
+            "_id": 1
+        }
+    )
+
+    return [
+        genre["_id"]
+        for genre in valid_genres
+    ]
 @app.route("/anime/create")
 def anime_create_page():
+
+    genres = list(
+        genres_collection.find(
+            {}
+        ).sort(
+            "name",
+            1
+        )
+    )
+    print("🐍 File: render_server/app.py | Line: 1722 | anime_create_page ~ genres",genres)
+
+    for genre in genres:
+        genre["id"] = str(
+            genre["_id"]
+        )
+
     return render_template(
-        "anime_create.html"
+        "anime_create.html",
+        genres=genres,
     )
 
 
@@ -958,7 +1818,7 @@ def api_anime_create():
         name = (
             data.get("name") or ""
         ).strip()
-
+        
         if not name:
             return jsonify({
                 "ok": False,
@@ -973,7 +1833,12 @@ def api_anime_create():
             episodes = int(episodes)
 
         now = datetime.now(timezone.utc)
-
+        genre_ids = prepare_genre_ids(
+            data.get(
+                "genre_ids",
+                []
+            )
+        )
         anime_data = {
 
             "name": name,
@@ -985,7 +1850,7 @@ def api_anime_create():
             "active": bool(
                 data.get("active", True)
             ),
-
+            "genre_ids": genre_ids,
             "anime_type": data.get(
                 "anime_type",
                 "tv"
@@ -1087,7 +1952,12 @@ def api_anime_update(anime_id):
         data = request.get_json() or {}
 
         episodes = data.get("episodes")
-
+        genre_ids = prepare_genre_ids(
+            data.get(
+                "genre_ids",
+                []
+            )
+        )
         if episodes in ["", None]:
             episodes = None
         else:
@@ -1146,8 +2016,9 @@ def api_anime_update(anime_id):
             "status": data.get(
                 "status",
                 "finished"
-            ),
-
+            ),  
+            "genre_ids":
+            genre_ids,
             "aired_from": parse_date(
                 data.get("aired_from")
             ),
@@ -1284,6 +2155,41 @@ def api_anime_delete(anime_id):
             "ok": False,
             "error": str(e),
         }), 500
+
+
+@app.route("/admin/genre/create", methods=["POST"])
+def create_genre():
+
+    name = str(
+        request.form.get("name")
+        or ""
+    ).strip()
+
+    if not name:
+        return jsonify({
+            "success": False,
+            "message": "Genre нэр оруулна уу."
+        }), 400
+
+    try:
+
+        result = genres_collection.insert_one({
+            "name": name,
+            "created_at": utcnow(),
+        })
+
+        return jsonify({
+            "success": True,
+            "id": str(result.inserted_id),
+            "name": name,
+        })
+
+    except DuplicateKeyError:
+
+        return jsonify({
+            "success": False,
+            "message": "Энэ genre аль хэдийн байна."
+        }), 409
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=True)

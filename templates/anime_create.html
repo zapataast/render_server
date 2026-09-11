@@ -555,7 +555,104 @@
                         >
 
                     </div>
+                    <!-- GENRES -->
 
+<div class="md:col-span-2">
+
+    <label
+        class="
+            block
+            text-sm
+            font-semibold
+            mb-2
+        "
+    >
+        Genre
+    </label>
+
+    <p class="text-xs text-slate-500 mb-3">
+        Олон genre сонгож болно
+    </p>
+
+
+    <div
+        id="genre-container"
+
+        class="
+            flex
+            flex-wrap
+            gap-2
+
+            border
+            border-slate-200
+            rounded-xl
+
+            bg-slate-50
+            p-4
+        "
+    >
+
+        {% for genre in genres %}
+
+        <label
+            class="
+                cursor-pointer
+                select-none
+            "
+        >
+
+            <input
+                type="checkbox"
+
+                class="
+                    genre-checkbox
+                    hidden
+                    peer
+                "
+
+                value="{{ genre.id }}"
+            >
+
+
+            <span
+                class="
+                    inline-flex
+                    items-center
+
+                    px-3
+                    py-2
+
+                    rounded-lg
+                    border
+                    border-slate-200
+
+                    bg-white
+
+                    text-sm
+                    font-medium
+                    text-slate-600
+
+                    hover:border-blue-400
+                    hover:bg-blue-50
+
+                    peer-checked:bg-blue-600
+                    peer-checked:text-white
+                    peer-checked:border-blue-600
+
+                    transition-all
+                    duration-150
+                "
+            >
+                {{ genre.name }}
+            </span>
+
+        </label>
+
+        {% endfor %}
+
+    </div>
+
+</div>
 
                     <!-- DESCRIPTION -->
 
@@ -1000,7 +1097,14 @@ form.addEventListener(
                 document.getElementById(
                     'name'
                 ).value,
-
+            genre_ids:
+            Array.from(
+                document.querySelectorAll(
+                    '.genre-checkbox:checked'
+                )
+            ).map(
+                checkbox => checkbox.value
+            ),
             description:
                 document.getElementById(
                     'description'
@@ -1403,7 +1507,26 @@ function editAnime(id) {
     if (!anime) {
         return;
     }
+    const selectedGenreIds =
+        new Set(
+            (anime.genre_ids || []).map(
+                String
+            )
+        );
 
+
+    document.querySelectorAll(
+        '.genre-checkbox'
+    ).forEach(
+        checkbox => {
+
+            checkbox.checked =
+                selectedGenreIds.has(
+                    checkbox.value
+                );
+
+        }
+    );
 
     animeIdInput.value =
         anime.id;
