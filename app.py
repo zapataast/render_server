@@ -64,7 +64,15 @@ videos_collection = mongo_db["videos"]
 anime_collection = mongo_db["anime"]
 users_collection = mongo_db.users
 genres_collection = mongo_db.genres
+home_slides_collection = mongo_db.home_slides
 
+
+home_slides_collection.create_index(
+    [
+        ("active", 1),
+        ("sequence", 1),
+    ]
+)
 genres_collection.create_index(
     "name",
     unique=True,
@@ -296,6 +304,362 @@ def get_current_user():
         )
     except Exception:
         return None
+@app.route("/admin/home-slides")
+def home_slides_admin_page():
+
+    return render_template(
+        "home_slides_admin.html"
+    )
+
+@app.route(
+    "/api/admin/home-slides",
+    methods=["GET"],
+)
+def api_home_slides_list():
+
+    slides = list(
+        home_slides_collection.find(
+            {}
+        ).sort(
+            [
+                ("sequence", 1),
+                ("_id", -1),
+            ]
+        )
+    )
+
+    results = []
+
+    for slide in slides:
+
+        results.append({
+            "id": str(
+                slide["_id"]
+            ),
+
+            "title":
+                slide.get(
+                    "title",
+                    ""
+                ),
+
+            "subtitle":
+                slide.get(
+                    "subtitle",
+                    ""
+                ),
+
+            "image_url":
+                slide.get(
+                    "image_url",
+                    ""
+                ),
+
+            "image_public_id":
+                slide.get(
+                    "image_public_id",
+                    ""
+                ),
+
+            "link_url":
+                slide.get(
+                    "link_url",
+                    ""
+                ),
+
+            "sequence":
+                slide.get(
+                    "sequence",
+                    10
+                ),
+
+            "active":
+                slide.get(
+                    "active",
+                    True
+                ),
+        })
+
+    return jsonify({
+        "ok": True,
+        "results": results,
+    })
+
+@app.route(
+    "/api/admin/home-slides/create",
+    methods=["POST"],
+)
+def api_home_slide_create():
+
+    data = request.get_json(
+        silent=True
+    ) or {}
+
+    image_url = str(
+        data.get("image_url")
+        or ""
+    ).strip()
+
+    if not image_url:
+
+        return jsonify({
+            "ok": False,
+            "error": "Banner зураг оруулна уу.",
+        }), 400
+
+
+    title = str(
+        data.get("title")
+        or ""
+    ).strip()
+
+    subtitle = str(
+        data.get("subtitle")
+        or ""
+    ).strip()
+
+    link_url = str(
+        data.get("link_url")
+        or ""
+    ).strip()
+
+    image_public_id = str(
+        data.get("image_public_id")
+        or ""
+    ).strip()
+
+
+    try:
+
+        sequence = int(
+            data.get(
+                "sequence",
+                10
+            )
+            or 10
+        )
+
+    except Exception:
+
+        sequence = 10
+
+
+    now = utcnow()
+
+
+    result = home_slides_collection.insert_one({
+        "title": title,
+
+        "subtitle": subtitle,
+
+        "image_url": image_url,
+
+        "image_public_id":
+            image_public_id,
+
+        "link_url": link_url,
+
+        "sequence": sequence,
+
+        "active": bool(
+            data.get(
+                "active",
+                True
+            )
+        ),
+
+        "created_at": now,
+
+        "updated_at": now,
+    })
+
+
+    return jsonify({
+        "ok": True,
+
+        "id": str(
+            result.inserted_id
+        ),
+    })
+
+
+@app.route(
+    "/api/admin/home-slides/<slide_id>",
+    methods=["PUT"],
+)
+def api_home_slide_update(
+    slide_id
+):
+
+    if not ObjectId.is_valid(
+        slide_id
+    ):
+
+        return jsonify({
+            "ok": False,
+            "error": "Slide ID буруу байна.",
+        }), 400
+
+
+    data = request.get_json(
+        silent=True
+    ) or {}
+
+
+    image_url = str(
+        data.get("image_url")
+        or ""
+    ).strip()
+
+
+    if not image_url:
+
+        return jsonify({
+            "ok": False,
+            "error": "Banner зураг оруулна уу.",
+        }), 400
+
+
+    try:
+
+        sequence = int(
+            data.get(
+                "sequence",
+                10
+            )
+            or 10
+        )
+
+    except Exception:
+
+        sequence = 10
+
+
+    result = home_slides_collection.update_one(
+        {
+            "_id": ObjectId(
+                slide_id
+            )
+        },
+
+        {
+            "$set": {
+
+                "title":
+                    str(
+                        data.get("title")
+                        or ""
+                    ).strip(),
+
+                "subtitle":
+                    str(
+                        data.get("subtitle")
+                        or ""
+                    ).strip(),
+
+                "image_url":
+                    image_url,
+
+                "image_public_id":
+                    str(
+                        data.get(
+                            "image_public_id"
+                        )
+                        or ""
+                    ).strip(),
+
+                "link_url":
+                    str(
+                        data.get("link_url")
+                        or ""
+                    ).strip(),
+
+                "sequence":
+                    sequence,
+
+                "active":
+                    bool(
+                        data.get(
+                            "active",
+                            True
+                        )
+                    ),
+
+                "updated_at":
+                    utcnow(),
+            }
+        }
+    )
+
+
+    if not result.matched_count:
+
+        return jsonify({
+            "ok": False,
+            "error": "Slide олдсонгүй.",
+        }), 404
+
+
+    return jsonify({
+        "ok": True,
+    })
+
+@app.route(
+    "/api/admin/home-slides/<slide_id>",
+    methods=["DELETE"],
+)
+def api_home_slide_delete(
+    slide_id
+):
+
+    if not ObjectId.is_valid(
+        slide_id
+    ):
+
+        return jsonify({
+            "ok": False,
+            "error": "Slide ID буруу байна.",
+        }), 400
+
+
+    slide = home_slides_collection.find_one(
+        {
+            "_id": ObjectId(
+                slide_id
+            )
+        }
+    )
+
+
+    if not slide:
+
+        return jsonify({
+            "ok": False,
+            "error": "Slide олдсонгүй.",
+        }), 404
+
+
+    # Хэрэв Cloudinary дээрх хуучин зургийг
+    # delete хийхийг хүсвэл энд public_id-аар устгаж болно.
+    #
+    # public_id = slide.get("image_public_id")
+    #
+    # if public_id:
+    #     cloudinary.uploader.destroy(public_id)
+
+
+    home_slides_collection.delete_one(
+        {
+            "_id": ObjectId(
+                slide_id
+            )
+        }
+    )
+
+
+    return jsonify({
+        "ok": True,
+    })
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -1420,6 +1784,30 @@ def fetch_anime_with_videos():
 
 @app.route("/")
 def home():
+
+    user = current_user()
+
+    # ==========================================
+    # HOME SLIDES
+    # ==========================================
+
+    slides = list(
+        home_slides_collection.find(
+            {
+                "active": True
+            }
+        ).sort(
+            [
+                ("sequence", 1),
+                ("_id", -1),
+            ]
+        )
+    )
+    for slide in slides:
+        slide["id"] = str(
+            slide["_id"]
+        )
+
     anime_list = list(
         anime_collection.find(
             {
@@ -1436,7 +1824,18 @@ def home():
 
     return render_template(
         "home.html",
+
+        user=user,
+        slides=slides,
         anime_list=anime_list,
+
+        display_phone=display_phone,
+
+        is_admin_user=(
+            is_admin(user)
+            if user
+            else False
+        ),
     )
 
 @app.route("/anime/<anime_id>")

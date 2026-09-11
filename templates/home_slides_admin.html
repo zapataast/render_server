@@ -1,0 +1,1761 @@
+<!DOCTYPE html>
+
+<html lang="mn">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Home Slides Admin</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+</head>
+
+
+<body
+    class="
+        bg-slate-100
+        text-slate-800
+    "
+>
+
+
+<div
+    class="
+        max-w-7xl
+        mx-auto
+        px-4
+        py-8
+    "
+>
+
+
+    <!-- HEADER -->
+
+    <div
+        class="
+            flex
+            items-center
+            justify-between
+            mb-6
+        "
+    >
+
+        <div>
+
+            <h1
+                class="
+                    text-3xl
+                    font-bold
+                "
+            >
+                Home Slider
+            </h1>
+
+            <p
+                class="
+                    text-slate-500
+                    mt-1
+                "
+            >
+                Нүүр хуудасны banner зургууд
+            </p>
+
+        </div>
+
+
+        <a
+            href="/"
+            target="_blank"
+
+            class="
+                px-4
+                py-2
+
+                rounded-xl
+
+                bg-slate-900
+                text-white
+
+                hover:bg-slate-700
+            "
+        >
+            Home харах
+        </a>
+
+    </div>
+
+
+
+    <!-- ================================================= -->
+    <!-- FORM -->
+    <!-- ================================================= -->
+
+    <div
+        class="
+            bg-white
+
+            rounded-2xl
+
+            border
+            border-slate-200
+
+            shadow-sm
+
+            p-6
+        "
+    >
+
+        <form
+            id="slide-form"
+
+            class="
+                grid
+                grid-cols-1
+                lg:grid-cols-3
+                gap-7
+            "
+        >
+
+
+            <input
+                type="hidden"
+                id="slide-id"
+            >
+
+
+            <input
+                type="hidden"
+                id="image-url"
+            >
+
+
+            <input
+                type="hidden"
+                id="image-public-id"
+            >
+
+
+
+            <!-- ========================================= -->
+            <!-- IMAGE -->
+            <!-- ========================================= -->
+
+            <div>
+
+                <label
+                    class="
+                        block
+                        text-sm
+                        font-semibold
+                        mb-2
+                    "
+                >
+                    Banner зураг *
+                </label>
+
+
+                <div
+                    id="image-drop-zone"
+
+                    class="
+                        relative
+
+                        min-h-[260px]
+
+                        border-2
+                        border-dashed
+                        border-slate-300
+
+                        rounded-2xl
+
+                        bg-slate-50
+
+                        hover:bg-blue-50
+                        hover:border-blue-400
+
+                        transition
+
+                        cursor-pointer
+
+                        overflow-hidden
+
+                        flex
+                        items-center
+                        justify-center
+                    "
+                >
+
+
+                    <input
+                        id="image-input"
+
+                        type="file"
+
+                        accept="image/*"
+
+                        class="hidden"
+                    >
+
+
+                    <div
+                        id="image-placeholder"
+
+                        class="
+                            text-center
+                            p-8
+                        "
+                    >
+
+                        <div
+                            class="
+                                text-4xl
+                                mb-3
+                            "
+                        >
+                            🖼️
+                        </div>
+
+
+                        <p class="font-semibold">
+                            Banner зургаа оруулна уу
+                        </p>
+
+
+                        <p
+                            class="
+                                text-sm
+                                text-slate-500
+                                mt-2
+                            "
+                        >
+                            Дарж эсвэл drag & drop
+                        </p>
+
+                    </div>
+
+
+                    <img
+                        id="image-preview"
+
+                        src=""
+
+                        class="
+                            hidden
+
+                            absolute
+                            inset-0
+
+                            w-full
+                            h-full
+
+                            object-cover
+                        "
+                    >
+
+
+                    <div
+                        id="image-loading"
+
+                        class="
+                            hidden
+
+                            absolute
+                            inset-0
+
+                            bg-black/60
+
+                            text-white
+
+                            items-center
+                            justify-center
+
+                            z-20
+                        "
+                    >
+                        Upload хийж байна...
+                    </div>
+
+                </div>
+
+
+                <button
+                    type="button"
+
+                    id="remove-image"
+
+                    class="
+                        hidden
+
+                        mt-3
+
+                        w-full
+
+                        py-2.5
+
+                        border
+                        border-red-200
+
+                        rounded-xl
+
+                        text-red-600
+
+                        hover:bg-red-50
+                    "
+                >
+                    Зураг арилгах
+                </button>
+
+            </div>
+
+
+
+            <!-- ========================================= -->
+            <!-- FIELDS -->
+            <!-- ========================================= -->
+
+            <div
+                class="
+                    lg:col-span-2
+                    grid
+                    grid-cols-1
+                    md:grid-cols-2
+                    gap-5
+                "
+            >
+
+
+                <!-- TITLE -->
+
+                <div class="md:col-span-2">
+
+                    <label
+                        class="
+                            block
+                            text-sm
+                            font-semibold
+                            mb-2
+                        "
+                    >
+                        Гарчиг
+                    </label>
+
+
+                    <input
+                        id="title"
+
+                        type="text"
+
+                        placeholder="Shinsekai Yori"
+
+                        class="
+                            w-full
+
+                            border
+                            border-slate-300
+
+                            rounded-xl
+
+                            px-4
+                            py-3
+
+                            outline-none
+
+                            focus:border-blue-500
+                            focus:ring-2
+                            focus:ring-blue-500/20
+                        "
+                    >
+
+                </div>
+
+
+
+                <!-- SUBTITLE -->
+
+                <div class="md:col-span-2">
+
+                    <label
+                        class="
+                            block
+                            text-sm
+                            font-semibold
+                            mb-2
+                        "
+                    >
+                        Subtitle
+                    </label>
+
+
+                    <textarea
+                        id="subtitle"
+
+                        rows="3"
+
+                        placeholder="Banner дээр харагдах тайлбар..."
+
+                        class="
+                            w-full
+
+                            border
+
+                            rounded-xl
+
+                            px-4
+                            py-3
+                        "
+                    ></textarea>
+
+                </div>
+
+
+
+                <!-- LINK -->
+
+                <div class="md:col-span-2">
+
+                    <label
+                        class="
+                            block
+                            text-sm
+                            font-semibold
+                            mb-2
+                        "
+                    >
+                        Link
+                    </label>
+
+
+                    <input
+                        id="link-url"
+
+                        type="text"
+
+                        placeholder="/anime/68c..."
+
+                        class="
+                            w-full
+
+                            border
+
+                            rounded-xl
+
+                            px-4
+                            py-3
+                        "
+                    >
+
+                </div>
+
+
+
+                <!-- SEQUENCE -->
+
+                <div>
+
+                    <label
+                        class="
+                            block
+                            text-sm
+                            font-semibold
+                            mb-2
+                        "
+                    >
+                        Дараалал
+                    </label>
+
+
+                    <input
+                        id="sequence"
+
+                        type="number"
+
+                        value="10"
+
+                        min="0"
+
+                        class="
+                            w-full
+
+                            border
+
+                            rounded-xl
+
+                            px-4
+                            py-3
+                        "
+                    >
+
+                </div>
+
+
+
+                <!-- ACTIVE -->
+
+                <div
+                    class="
+                        flex
+                        items-end
+                    "
+                >
+
+                    <label
+                        class="
+                            flex
+                            items-center
+                            gap-3
+
+                            border
+
+                            rounded-xl
+
+                            px-4
+                            py-3
+
+                            w-full
+
+                            cursor-pointer
+                        "
+                    >
+
+                        <input
+                            id="active"
+
+                            type="checkbox"
+
+                            checked
+
+                            class="
+                                w-5
+                                h-5
+                            "
+                        >
+
+                        <span class="font-medium">
+                            Active
+                        </span>
+
+                    </label>
+
+                </div>
+
+
+
+                <!-- BUTTON -->
+
+                <div
+                    class="
+                        md:col-span-2
+
+                        flex
+                        justify-end
+                        gap-3
+
+                        pt-3
+                    "
+                >
+
+
+                    <button
+                        type="button"
+
+                        id="cancel-edit"
+
+                        class="
+                            hidden
+
+                            px-6
+                            py-3
+
+                            border
+
+                            rounded-xl
+
+                            hover:bg-slate-50
+                        "
+                    >
+                        Болих
+                    </button>
+
+
+                    <button
+                        type="submit"
+
+                        id="save-button"
+
+                        class="
+                            px-7
+                            py-3
+
+                            bg-blue-600
+
+                            text-white
+
+                            rounded-xl
+
+                            font-semibold
+
+                            hover:bg-blue-700
+                            active:scale-95
+
+                            transition
+                        "
+                    >
+                        Banner нэмэх
+                    </button>
+
+                </div>
+
+
+            </div>
+
+
+        </form>
+
+    </div>
+
+
+
+    <!-- ================================================= -->
+    <!-- LIST -->
+    <!-- ================================================= -->
+
+    <div
+        class="
+            mt-8
+
+            bg-white
+
+            rounded-2xl
+
+            border
+            border-slate-200
+
+            overflow-hidden
+        "
+    >
+
+
+        <div
+            class="
+                px-6
+                py-5
+
+                border-b
+
+                flex
+                items-center
+                justify-between
+            "
+        >
+
+            <div>
+
+                <h2
+                    class="
+                        text-xl
+                        font-bold
+                    "
+                >
+                    Banner жагсаалт
+                </h2>
+
+
+                <p
+                    id="slide-count"
+
+                    class="
+                        text-sm
+                        text-slate-500
+                    "
+                ></p>
+
+            </div>
+
+
+            <button
+                type="button"
+
+                onclick="loadSlides()"
+
+                class="
+                    border
+
+                    px-4
+                    py-2
+
+                    rounded-xl
+
+                    hover:bg-slate-50
+                "
+            >
+                ↻ Шинэчлэх
+            </button>
+
+        </div>
+
+
+        <div
+            id="slide-list"
+
+            class="divide-y"
+        ></div>
+
+    </div>
+
+
+</div>
+
+
+
+<script>
+
+const form =
+    document.getElementById(
+        'slide-form'
+    );
+
+
+const slideIdInput =
+    document.getElementById(
+        'slide-id'
+    );
+
+
+const imageUrlInput =
+    document.getElementById(
+        'image-url'
+    );
+
+
+const imagePublicIdInput =
+    document.getElementById(
+        'image-public-id'
+    );
+
+
+const imageInput =
+    document.getElementById(
+        'image-input'
+    );
+
+
+const dropZone =
+    document.getElementById(
+        'image-drop-zone'
+    );
+
+
+const imagePreview =
+    document.getElementById(
+        'image-preview'
+    );
+
+
+const imagePlaceholder =
+    document.getElementById(
+        'image-placeholder'
+    );
+
+
+const imageLoading =
+    document.getElementById(
+        'image-loading'
+    );
+
+
+const removeImageButton =
+    document.getElementById(
+        'remove-image'
+    );
+
+
+const saveButton =
+    document.getElementById(
+        'save-button'
+    );
+
+
+const cancelEditButton =
+    document.getElementById(
+        'cancel-edit'
+    );
+
+
+let slideCache = [];
+
+
+
+/* ======================================================
+   IMAGE PICK
+====================================================== */
+
+dropZone.addEventListener(
+    'click',
+    () => imageInput.click()
+);
+
+
+imageInput.addEventListener(
+    'change',
+    () => {
+
+        if (
+            imageInput.files.length
+        ) {
+
+            uploadImage(
+                imageInput.files[0]
+            );
+
+        }
+
+    }
+);
+
+
+
+/* ======================================================
+   DRAG DROP
+====================================================== */
+
+[
+    'dragenter',
+    'dragover'
+].forEach(
+    eventName => {
+
+        dropZone.addEventListener(
+            eventName,
+            event => {
+
+                event.preventDefault();
+
+                dropZone.classList.add(
+                    'border-blue-500',
+                    'bg-blue-50'
+                );
+
+            }
+        );
+
+    }
+);
+
+
+[
+    'dragleave',
+    'drop'
+].forEach(
+    eventName => {
+
+        dropZone.addEventListener(
+            eventName,
+            event => {
+
+                event.preventDefault();
+
+                dropZone.classList.remove(
+                    'border-blue-500',
+                    'bg-blue-50'
+                );
+
+            }
+        );
+
+    }
+);
+
+
+dropZone.addEventListener(
+    'drop',
+    event => {
+
+        const files =
+            event.dataTransfer.files;
+
+        if (!files.length) {
+            return;
+        }
+
+        uploadImage(
+            files[0]
+        );
+
+    }
+);
+
+
+
+/* ======================================================
+   UPLOAD
+====================================================== */
+
+async function uploadImage(
+    file
+) {
+
+    if (
+        !file.type.startsWith(
+            'image/'
+        )
+    ) {
+
+        alert(
+            'Зөвхөн зураг оруулна.'
+        );
+
+        return;
+    }
+
+
+    const formData =
+        new FormData();
+
+
+    formData.append(
+        'image',
+        file
+    );
+
+
+    imageLoading.classList.remove(
+        'hidden'
+    );
+
+    imageLoading.classList.add(
+        'flex'
+    );
+
+
+    try {
+
+        /*
+         * Anime дээр байгаа
+         * Cloudinary upload endpoint-ийг reuse хийж байна.
+         */
+
+        const response =
+            await fetch(
+                '/api/admin/anime/image-upload',
+                {
+                    method: 'POST',
+                    body: formData
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (
+            !response.ok ||
+            !data.ok
+        ) {
+
+            throw new Error(
+                data.error ||
+                'Upload error'
+            );
+
+        }
+
+
+        imageUrlInput.value =
+            data.image_url;
+
+
+        imagePublicIdInput.value =
+            data.public_id || '';
+
+
+        showImage(
+            data.image_url
+        );
+
+
+    } catch (error) {
+
+        alert(
+            error.message
+        );
+
+
+    } finally {
+
+        imageLoading.classList.add(
+            'hidden'
+        );
+
+        imageLoading.classList.remove(
+            'flex'
+        );
+
+    }
+
+}
+
+
+
+/* ======================================================
+   SHOW IMAGE
+====================================================== */
+
+function showImage(
+    url
+) {
+
+    if (!url) {
+
+        imagePreview.src = '';
+
+        imagePreview.classList.add(
+            'hidden'
+        );
+
+
+        imagePlaceholder.classList.remove(
+            'hidden'
+        );
+
+
+        removeImageButton.classList.add(
+            'hidden'
+        );
+
+
+        return;
+    }
+
+
+    imagePreview.src =
+        url;
+
+
+    imagePreview.classList.remove(
+        'hidden'
+    );
+
+
+    imagePlaceholder.classList.add(
+        'hidden'
+    );
+
+
+    removeImageButton.classList.remove(
+        'hidden'
+    );
+
+}
+
+
+
+removeImageButton.addEventListener(
+    'click',
+    event => {
+
+        event.stopPropagation();
+
+
+        imageUrlInput.value = '';
+
+        imagePublicIdInput.value = '';
+
+
+        showImage('');
+
+    }
+);
+
+
+
+/* ======================================================
+   CREATE / UPDATE
+====================================================== */
+
+form.addEventListener(
+    'submit',
+    async event => {
+
+        event.preventDefault();
+
+
+        const slideId =
+            slideIdInput.value;
+
+
+        const payload = {
+
+            title:
+                document.getElementById(
+                    'title'
+                ).value,
+
+            subtitle:
+                document.getElementById(
+                    'subtitle'
+                ).value,
+
+            link_url:
+                document.getElementById(
+                    'link-url'
+                ).value,
+
+            sequence:
+                Number(
+                    document.getElementById(
+                        'sequence'
+                    ).value
+                    || 10
+                ),
+
+            active:
+                document.getElementById(
+                    'active'
+                ).checked,
+
+            image_url:
+                imageUrlInput.value,
+
+            image_public_id:
+                imagePublicIdInput.value,
+        };
+
+
+        if (!payload.image_url) {
+
+            alert(
+                'Banner зураг оруулна уу.'
+            );
+
+            return;
+        }
+
+
+        const url =
+            slideId
+            ? `/api/admin/home-slides/${slideId}`
+            : '/api/admin/home-slides/create';
+
+
+        const method =
+            slideId
+            ? 'PUT'
+            : 'POST';
+
+
+        saveButton.disabled =
+            true;
+
+
+        saveButton.textContent =
+            'Хадгалж байна...';
+
+
+        try {
+
+            const response =
+                await fetch(
+                    url,
+                    {
+                        method,
+
+                        headers: {
+                            'Content-Type':
+                                'application/json'
+                        },
+
+                        body:
+                            JSON.stringify(
+                                payload
+                            )
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (
+                !response.ok ||
+                !data.ok
+            ) {
+
+                throw new Error(
+                    data.error ||
+                    'Save error'
+                );
+
+            }
+
+
+            resetForm();
+
+            await loadSlides();
+
+
+        } catch (error) {
+
+            alert(
+                error.message
+            );
+
+
+        } finally {
+
+            saveButton.disabled =
+                false;
+
+
+            saveButton.textContent =
+                slideIdInput.value
+                ? 'Өөрчлөлт хадгалах'
+                : 'Banner нэмэх';
+
+        }
+
+    }
+);
+
+
+
+/* ======================================================
+   LOAD
+====================================================== */
+
+async function loadSlides() {
+
+    const container =
+        document.getElementById(
+            'slide-list'
+        );
+
+
+    container.innerHTML = `
+        <div
+            class="
+                p-8
+                text-center
+                text-slate-500
+            "
+        >
+            Ачаалж байна...
+        </div>
+    `;
+
+
+    try {
+
+        const response =
+            await fetch(
+                '/api/admin/home-slides'
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (
+            !response.ok ||
+            !data.ok
+        ) {
+
+            throw new Error(
+                data.error ||
+                'Load error'
+            );
+
+        }
+
+
+        slideCache =
+            data.results || [];
+
+
+        document.getElementById(
+            'slide-count'
+        ).textContent =
+            `${slideCache.length} banner`;
+
+
+        if (!slideCache.length) {
+
+            container.innerHTML = `
+                <div
+                    class="
+                        p-10
+                        text-center
+                        text-slate-500
+                    "
+                >
+                    Banner алга.
+                </div>
+            `;
+
+            return;
+        }
+
+
+        container.innerHTML =
+            slideCache.map(
+                slide => `
+
+                <div
+                    class="
+                        p-4
+
+                        flex
+                        items-center
+                        gap-4
+
+                        hover:bg-slate-50
+                    "
+                >
+
+
+                    <div
+                        class="
+                            w-44
+                            h-24
+
+                            rounded-xl
+
+                            bg-slate-100
+
+                            overflow-hidden
+
+                            shrink-0
+                        "
+                    >
+
+                        <img
+                            src="${escapeHtml(
+                                slide.image_url
+                            )}"
+
+                            class="
+                                w-full
+                                h-full
+
+                                object-cover
+                            "
+                        >
+
+                    </div>
+
+
+
+                    <div
+                        class="
+                            flex-1
+                            min-w-0
+                        "
+                    >
+
+                        <h3
+                            class="
+                                font-bold
+                                text-lg
+                                truncate
+                            "
+                        >
+                            ${escapeHtml(
+                                slide.title
+                                || '(Гарчиггүй)'
+                            )}
+                        </h3>
+
+
+                        <p
+                            class="
+                                text-sm
+                                text-slate-500
+
+                                truncate
+
+                                mt-1
+                            "
+                        >
+                            ${escapeHtml(
+                                slide.subtitle
+                                || ''
+                            )}
+                        </p>
+
+
+                        <div
+                            class="
+                                mt-2
+
+                                flex
+                                gap-3
+                                flex-wrap
+
+                                text-xs
+                                text-slate-500
+                            "
+                        >
+
+                            <span>
+                                Sequence:
+                                ${slide.sequence}
+                            </span>
+
+
+                            <span>
+                                ${
+                                    slide.active
+                                    ? '🟢 Active'
+                                    : '⚪ Inactive'
+                                }
+                            </span>
+
+
+                            ${
+                                slide.link_url
+
+                                ? `
+                                    <span>
+                                        ${escapeHtml(
+                                            slide.link_url
+                                        )}
+                                    </span>
+                                `
+
+                                : ''
+                            }
+
+                        </div>
+
+                    </div>
+
+
+
+                    <div
+                        class="
+                            flex
+                            gap-2
+                        "
+                    >
+
+                        <button
+                            onclick="
+                                editSlide(
+                                    '${slide.id}'
+                                )
+                            "
+
+                            class="
+                                px-4
+                                py-2
+
+                                rounded-xl
+
+                                bg-blue-50
+                                text-blue-700
+
+                                hover:bg-blue-100
+                            "
+                        >
+                            Засах
+                        </button>
+
+
+                        <button
+                            onclick="
+                                deleteSlide(
+                                    '${slide.id}'
+                                )
+                            "
+
+                            class="
+                                px-4
+                                py-2
+
+                                rounded-xl
+
+                                bg-red-50
+                                text-red-600
+
+                                hover:bg-red-100
+                            "
+                        >
+                            Устгах
+                        </button>
+
+                    </div>
+
+
+                </div>
+
+            `
+            ).join('');
+
+
+    } catch (error) {
+
+        container.innerHTML = `
+            <div
+                class="
+                    p-8
+                    text-center
+                    text-red-600
+                "
+            >
+                ${escapeHtml(
+                    error.message
+                )}
+            </div>
+        `;
+
+    }
+
+}
+
+
+
+/* ======================================================
+   EDIT
+====================================================== */
+
+function editSlide(
+    id
+) {
+
+    const slide =
+        slideCache.find(
+            item => item.id === id
+        );
+
+
+    if (!slide) {
+        return;
+    }
+
+
+    slideIdInput.value =
+        slide.id;
+
+
+    document.getElementById(
+        'title'
+    ).value =
+        slide.title || '';
+
+
+    document.getElementById(
+        'subtitle'
+    ).value =
+        slide.subtitle || '';
+
+
+    document.getElementById(
+        'link-url'
+    ).value =
+        slide.link_url || '';
+
+
+    document.getElementById(
+        'sequence'
+    ).value =
+        slide.sequence ?? 10;
+
+
+    document.getElementById(
+        'active'
+    ).checked =
+        slide.active !== false;
+
+
+    imageUrlInput.value =
+        slide.image_url || '';
+
+
+    imagePublicIdInput.value =
+        slide.image_public_id || '';
+
+
+    showImage(
+        slide.image_url
+    );
+
+
+    saveButton.textContent =
+        'Өөрчлөлт хадгалах';
+
+
+    cancelEditButton.classList.remove(
+        'hidden'
+    );
+
+
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+
+}
+
+
+
+/* ======================================================
+   DELETE
+====================================================== */
+
+async function deleteSlide(
+    id
+) {
+
+    if (
+        !confirm(
+            'Энэ banner-г устгах уу?'
+        )
+    ) {
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/admin/home-slides/${id}`,
+                {
+                    method: 'DELETE'
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (
+            !response.ok ||
+            !data.ok
+        ) {
+
+            throw new Error(
+                data.error ||
+                'Delete error'
+            );
+
+        }
+
+
+        if (
+            slideIdInput.value === id
+        ) {
+
+            resetForm();
+
+        }
+
+
+        await loadSlides();
+
+
+    } catch (error) {
+
+        alert(
+            error.message
+        );
+
+    }
+
+}
+
+
+
+/* ======================================================
+   RESET
+====================================================== */
+
+function resetForm() {
+
+    form.reset();
+
+
+    slideIdInput.value = '';
+
+    imageUrlInput.value = '';
+
+    imagePublicIdInput.value = '';
+
+
+    document.getElementById(
+        'sequence'
+    ).value = 10;
+
+
+    document.getElementById(
+        'active'
+    ).checked = true;
+
+
+    showImage('');
+
+
+    saveButton.textContent =
+        'Banner нэмэх';
+
+
+    cancelEditButton.classList.add(
+        'hidden'
+    );
+
+}
+
+
+cancelEditButton.addEventListener(
+    'click',
+    resetForm
+);
+
+
+
+/* ======================================================
+   ESCAPE
+====================================================== */
+
+function escapeHtml(
+    value
+) {
+
+    const div =
+        document.createElement(
+            'div'
+        );
+
+
+    div.textContent =
+        value || '';
+
+
+    return div.innerHTML;
+
+}
+
+
+
+/* ======================================================
+   INIT
+====================================================== */
+
+loadSlides();
+
+</script>
+
+
+</body>
+
+</html>
