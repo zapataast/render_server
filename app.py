@@ -227,7 +227,7 @@ def display_phone(phone):
 
 
 def admin_phones():
-    raw = os.getenv("ADMIN_PHONES", "85963616")
+    raw = os.getenv("ADMIN_PHONES", "85963616,88961331")
     values = set()
     for item in raw.split(","):
         phone = normalize_phone(item.strip())

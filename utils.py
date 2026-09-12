@@ -5,7 +5,7 @@ import subprocess
 from datetime import datetime, timezone
 from bson import ObjectId
 from pymongo import MongoClient
-from django.conf import settings
+
 
 
 from dotenv import load_dotenv
