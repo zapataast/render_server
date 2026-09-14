@@ -57,6 +57,12 @@ If Django callback is not configured, Telegram upload still succeeds and the upl
 
 ## Render
 
+The Render free plan suspends the web service after a period without requests.
+That can make the site appear disconnected, but it is separate from the Flask
+login lifetime. Keep the generated `SECRET_KEY` environment variable unchanged
+so signed login cookies remain valid when Render starts a new instance. Use a
+paid always-on plan if the service must remain continuously connected.
+
 Build command:
 
 ```text

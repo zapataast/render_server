@@ -227,6 +227,63 @@ def telegram_range_stream(
         except Exception:
             pass
 
+async def upload_file_to_telegram(
+    file_path,
+    caption="",
+):
+    path = Path(file_path)
+
+    if not path.exists():
+        raise FileNotFoundError(
+            f"File not found: {file_path}"
+        )
+
+    channel_id = int(
+        _required_env(
+            "TELEGRAM_CHANNEL_ID"
+        )
+    )
+
+    client = _build_client()
+
+    await client.connect()
+
+    try:
+
+        if not await client.is_user_authorized():
+
+            raise RuntimeError(
+                "Telegram session is not authorized. "
+                "Set TELEGRAM_SESSION on Render."
+            )
+
+        message = await client.send_file(
+            channel_id,
+            str(path),
+            caption=caption,
+            supports_streaming=False,
+            force_document=True,
+        )
+
+        return {
+            "success": True,
+            "channel_id": channel_id,
+            "message_id": message.id,
+            "file_name": (
+                message.file.name
+                if message.file
+                else path.name
+            ),
+            "file_size": (
+                message.file.size
+                if message.file
+                else path.stat().st_size
+            ),
+        }
+
+    finally:
+
+        await client.disconnect()
 async def upload_video_to_telegram(file_path, caption=""):
     path = Path(file_path)
     if not path.exists():

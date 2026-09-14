@@ -1,29 +1,1045 @@
+
 {% extends "base.html" %}
-{% block title %}Dashboard{% endblock %}
-{% block body %}
-<header>
-  <b>Render App</b>
-  <nav>{% if is_admin_user %}<a href="{{url_for('uploader_page')}}">Uploader</a>{% endif %}<a href="{{url_for('profile')}}">Profile</a><a href="{{url_for('logout')}}">Гарах</a></nav>
-</header>
-<main>
-  <div class="card">
-    <div class="user-head">
-      {% if user.profile_image_url %}
-        <img class="avatar" src="{{user.profile_image_url}}">
-      {% else %}
-        <div class="avatar fallback">{{user.nickname[:1]|upper}}</div>
-      {% endif %}
-      <div><h1>{{user.nickname}} {% if is_admin_user %}<span class="admin-badge">ADMIN</span>{% endif %}</h1><p>+976 {{display_phone(user.phone)}}</p></div>
-    </div>
-    <div class="rows">
-      <div><span>Email</span><b>{{user.email or "Оруулаагүй"}}</b></div>
-      <div><span>Төрсөн огноо</span><b>{{user.birthdate or "Оруулаагүй"}}</b></div>
-    </div>
-    <a class="btnlink" href="{{url_for('profile')}}">Profile засах</a>{% if is_admin_user %}
-    <a class="btnlink" style="margin-left:8px;background:#242633" href="{{url_for('uploader_page')}}">Admin uploader</a>
-    <a class="btnlink" style="margin-left:8px;background:#242633" href="{{url_for('anime_create_page')}}">Anime Create</a>
-    <a class="btnlink" style="margin-left:8px;background:#242633" href="/admin/home-slides"> Home Slider </a>
-    {% endif %}
-  </div>
-</main>
+
+{% block title %}
+Dashboard
 {% endblock %}
+
+
+{% block body %}
+
+<style>
+
+    * {
+        box-sizing: border-box;
+    }
+
+
+    body {
+        background: #f6f7fb;
+    }
+
+
+    /* =====================================================
+       PAGE
+    ===================================================== */
+
+    .dashboard-page {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 32px 20px 60px;
+    }
+
+
+    /* =====================================================
+       HEADER
+    ===================================================== */
+
+    .dashboard-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 28px;
+    }
+
+
+    .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+
+        font-size: 21px;
+        font-weight: 800;
+
+        color: #0f172a;
+        text-decoration: none;
+    }
+
+
+    .brand-icon {
+        width: 38px;
+        height: 38px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        border-radius: 11px;
+
+        background: linear-gradient(
+            135deg,
+            #6366f1,
+            #8b5cf6
+        );
+
+        color: #ffffff;
+        font-size: 18px;
+    }
+
+
+    .header-nav {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+
+    .header-nav a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        padding: 9px 14px;
+
+        border-radius: 10px;
+
+        color: #475569;
+
+        font-size: 14px;
+        font-weight: 600;
+
+        text-decoration: none;
+
+        transition: all 0.2s ease;
+    }
+
+
+    .header-nav a:hover {
+        color: #0f172a;
+        background: #ffffff;
+
+        box-shadow:
+            0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+
+    .header-nav .logout-link {
+        color: #dc2626;
+        background: #fef2f2;
+    }
+
+
+    .header-nav .logout-link:hover {
+        color: #b91c1c;
+        background: #fee2e2;
+    }
+
+
+    /* =====================================================
+       PROFILE CARD
+    ===================================================== */
+
+    .profile-card {
+        background: #ffffff;
+
+        border: 1px solid #e2e8f0;
+        border-radius: 22px;
+
+        padding: 28px;
+
+        box-shadow:
+            0 1px 2px rgba(15, 23, 42, 0.03),
+            0 10px 30px rgba(15, 23, 42, 0.05);
+
+        margin-bottom: 30px;
+    }
+
+
+    .profile-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        gap: 20px;
+
+        flex-wrap: wrap;
+    }
+
+
+    .user-head-modern {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+    }
+
+
+    .dashboard-avatar {
+        width: 72px;
+        height: 72px;
+
+        flex-shrink: 0;
+
+        object-fit: cover;
+
+        border-radius: 20px;
+
+        border: 3px solid #ffffff;
+
+        box-shadow:
+            0 6px 20px rgba(15, 23, 42, 0.12);
+    }
+
+
+    .dashboard-avatar.fallback {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        background: linear-gradient(
+            135deg,
+            #6366f1,
+            #8b5cf6
+        );
+
+        color: #ffffff;
+
+        font-size: 28px;
+        font-weight: 800;
+    }
+
+
+    .user-name-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+
+        flex-wrap: wrap;
+
+        margin-bottom: 6px;
+    }
+
+
+    .user-name-row h1 {
+        margin: 0;
+
+        color: #0f172a;
+
+        font-size: 25px;
+        font-weight: 800;
+
+        line-height: 1.2;
+    }
+
+
+    .user-phone {
+        margin: 0;
+
+        color: #64748b;
+
+        font-size: 14px;
+    }
+
+
+    .admin-badge-modern {
+        display: inline-flex;
+        align-items: center;
+
+        padding: 5px 9px;
+
+        border-radius: 999px;
+
+        background: #eef2ff;
+
+        color: #4f46e5;
+
+        font-size: 10px;
+        font-weight: 800;
+
+        letter-spacing: 0.08em;
+    }
+
+
+    .profile-edit-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+
+        padding: 11px 17px;
+
+        border-radius: 11px;
+
+        background: #0f172a;
+
+        color: #ffffff;
+
+        text-decoration: none;
+
+        font-size: 14px;
+        font-weight: 700;
+
+        transition: all 0.2s ease;
+    }
+
+
+    .profile-edit-button:hover {
+        background: #334155;
+        transform: translateY(-1px);
+    }
+
+
+    /* =====================================================
+       PROFILE INFO
+    ===================================================== */
+
+    .info-grid {
+        display: grid;
+
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+
+        gap: 14px;
+
+        margin-top: 26px;
+        padding-top: 22px;
+
+        border-top: 1px solid #f1f5f9;
+    }
+
+
+    .info-item {
+        padding: 15px 17px;
+
+        background: #f8fafc;
+
+        border: 1px solid #f1f5f9;
+        border-radius: 14px;
+    }
+
+
+    .info-label {
+        display: block;
+
+        margin-bottom: 6px;
+
+        color: #94a3b8;
+
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+
+    .info-value {
+        display: block;
+
+        color: #334155;
+
+        font-size: 14px;
+        font-weight: 700;
+
+        word-break: break-word;
+    }
+
+
+    /* =====================================================
+       SECTION HEADING
+    ===================================================== */
+
+    .section-heading {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+
+        gap: 16px;
+
+        margin-bottom: 17px;
+    }
+
+
+    .section-heading h2 {
+        margin: 0;
+
+        color: #0f172a;
+
+        font-size: 20px;
+        font-weight: 800;
+    }
+
+
+    .section-heading p {
+        margin: 5px 0 0;
+
+        color: #94a3b8;
+
+        font-size: 13px;
+    }
+
+
+    /* =====================================================
+       ADMIN GRID
+    ===================================================== */
+
+    .admin-grid {
+        display: grid;
+
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+
+        gap: 16px;
+    }
+
+
+    .admin-card {
+        position: relative;
+
+        display: block;
+
+        min-height: 175px;
+
+        padding: 20px;
+
+        background: #ffffff;
+
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+
+        text-decoration: none;
+
+        overflow: hidden;
+
+        transition:
+            transform 0.2s ease,
+            box-shadow 0.2s ease,
+            border-color 0.2s ease;
+    }
+
+
+    .admin-card:hover {
+        transform: translateY(-4px);
+
+        border-color: #c7d2fe;
+
+        box-shadow:
+            0 14px 30px rgba(
+                15,
+                23,
+                42,
+                0.08
+            );
+    }
+
+
+    .admin-card::after {
+        content: "";
+
+        position: absolute;
+
+        width: 100px;
+        height: 100px;
+
+        right: -45px;
+        bottom: -45px;
+
+        border-radius: 50%;
+
+        background: #f8fafc;
+
+        transition: all 0.2s ease;
+    }
+
+
+    .admin-card:hover::after {
+        background: #eef2ff;
+    }
+
+
+    .admin-icon {
+        width: 46px;
+        height: 46px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        margin-bottom: 16px;
+
+        border-radius: 13px;
+
+        background: #f1f5f9;
+
+        font-size: 22px;
+    }
+
+
+    .admin-card h3 {
+        position: relative;
+        z-index: 1;
+
+        margin: 0;
+
+        color: #0f172a;
+
+        font-size: 16px;
+        font-weight: 800;
+    }
+
+
+    .admin-card p {
+        position: relative;
+        z-index: 1;
+
+        margin: 7px 0 0;
+
+        max-width: 90%;
+
+        color: #64748b;
+
+        font-size: 13px;
+
+        line-height: 1.5;
+    }
+
+
+    .admin-arrow {
+        position: absolute;
+
+        top: 20px;
+        right: 18px;
+
+        z-index: 2;
+
+        color: #cbd5e1;
+
+        font-size: 19px;
+
+        transition: all 0.2s ease;
+    }
+
+
+    .admin-card:hover .admin-arrow {
+        color: #6366f1;
+        transform: translateX(3px);
+    }
+
+
+    /* =====================================================
+       DIFFERENT ICON BACKGROUNDS
+    ===================================================== */
+
+    .icon-upload {
+        background: #eff6ff;
+    }
+
+
+    .icon-anime {
+        background: #fdf2f8;
+    }
+
+
+    .icon-slider {
+        background: #f0fdf4;
+    }
+
+
+    .icon-video {
+        background: #fff7ed;
+    }
+
+
+    .icon-file {
+        background: #f5f3ff;
+    }
+
+
+    /* =====================================================
+       RESPONSIVE
+    ===================================================== */
+
+    @media (
+        max-width: 900px
+    ) {
+
+        .admin-grid {
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+        }
+
+    }
+
+
+    @media (
+        max-width: 650px
+    ) {
+
+        .dashboard-page {
+            padding:
+                20px
+                14px
+                40px;
+        }
+
+
+        .dashboard-header {
+            align-items: flex-start;
+            flex-direction: column;
+
+            margin-bottom: 20px;
+        }
+
+
+        .header-nav {
+            width: 100%;
+        }
+
+
+        .profile-card {
+            padding: 20px;
+        }
+
+
+        .profile-top {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+
+        .user-head-modern {
+            align-items: flex-start;
+        }
+
+
+        .dashboard-avatar {
+            width: 60px;
+            height: 60px;
+
+            border-radius: 16px;
+        }
+
+
+        .dashboard-avatar.fallback {
+            font-size: 23px;
+        }
+
+
+        .user-name-row h1 {
+            font-size: 20px;
+        }
+
+
+        .profile-edit-button {
+            width: 100%;
+        }
+
+
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+
+
+        .admin-grid {
+            grid-template-columns: 1fr;
+        }
+
+
+        .admin-card {
+            min-height: auto;
+        }
+
+    }
+
+</style>
+
+
+<div class="dashboard-page">
+
+
+    <!-- ===================================================
+         HEADER
+    ==================================================== -->
+
+    <header class="dashboard-header">
+
+        <a
+            href="/"
+            class="brand"
+        >
+
+            <div class="brand-icon">
+                R
+            </div>
+
+            <span>
+                Render App
+            </span>
+
+        </a>
+
+
+        <nav class="header-nav">
+
+
+            {% if is_admin_user %}
+
+                <a
+                    href="{{ url_for('uploader_page') }}"
+                >
+                    Uploader
+                </a>
+
+            {% endif %}
+
+
+            <a
+                href="{{ url_for('profile') }}"
+            >
+                Profile
+            </a>
+
+
+            <a
+                href="{{ url_for('logout') }}"
+                class="logout-link"
+            >
+                Гарах
+            </a>
+
+        </nav>
+
+    </header>
+
+
+    <!-- ===================================================
+         USER PROFILE
+    ==================================================== -->
+
+    <section class="profile-card">
+
+        <div class="profile-top">
+
+
+            <div class="user-head-modern">
+
+
+                {% if user.profile_image_url %}
+
+                    <img
+                        class="dashboard-avatar"
+                        src="{{ user.profile_image_url }}"
+                        alt="{{ user.nickname }}"
+                    >
+
+                {% else %}
+
+                    <div
+                        class="
+                            dashboard-avatar
+                            fallback
+                        "
+                    >
+                        {{ user.nickname[:1]|upper }}
+                    </div>
+
+                {% endif %}
+
+
+                <div>
+
+                    <div class="user-name-row">
+
+                        <h1>
+                            {{ user.nickname }}
+                        </h1>
+
+
+                        {% if is_admin_user %}
+
+                            <span
+                                class="admin-badge-modern"
+                            >
+                                ADMIN
+                            </span>
+
+                        {% endif %}
+
+                    </div>
+
+
+                    <p class="user-phone">
+                        +976 {{ display_phone(user.phone) }}
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <a
+                href="{{ url_for('profile') }}"
+                class="profile-edit-button"
+            >
+                ✏️
+                Profile засах
+            </a>
+
+        </div>
+
+
+        <!-- USER INFO -->
+
+        <div class="info-grid">
+
+
+            <div class="info-item">
+
+                <span class="info-label">
+                    Email
+                </span>
+
+                <span class="info-value">
+                    {{ user.email or "Оруулаагүй" }}
+                </span>
+
+            </div>
+
+
+            <div class="info-item">
+
+                <span class="info-label">
+                    Төрсөн огноо
+                </span>
+
+                <span class="info-value">
+                    {{ user.birthdate or "Оруулаагүй" }}
+                </span>
+
+            </div>
+
+
+        </div>
+
+    </section>
+
+
+
+    <!-- ===================================================
+         ADMIN MANAGEMENT
+    ==================================================== -->
+
+    {% if is_admin_user %}
+
+        <section>
+
+
+            <div class="section-heading">
+
+                <div>
+
+                    <h2>
+                        Admin удирдлага
+                    </h2>
+
+                    <p>
+                        Контент болон системийн удирдлагын хэсэг
+                    </p>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="admin-grid">
+
+
+                <!-- =======================================
+                     VIDEO UPLOADER
+                ======================================== -->
+
+                <a
+                    href="{{ url_for('uploader_page') }}"
+                    class="admin-card"
+                >
+
+                    <span class="admin-arrow">
+                        →
+                    </span>
+
+
+                    <div
+                        class="
+                            admin-icon
+                            icon-upload
+                        "
+                    >
+                        ⬆️
+                    </div>
+
+
+                    <h3>
+                        Video Uploader
+                    </h3>
+
+
+                    <p>
+                        Видео файлыг Telegram channel
+                        руу upload хийх.
+                    </p>
+
+                </a>
+
+
+
+                <!-- =======================================
+                     ANIME CREATE
+                ======================================== -->
+
+                <a
+                    href="{{ url_for('anime_create_page') }}"
+                    class="admin-card"
+                >
+
+                    <span class="admin-arrow">
+                        →
+                    </span>
+
+
+                    <div
+                        class="
+                            admin-icon
+                            icon-anime
+                        "
+                    >
+                        🎞️
+                    </div>
+
+
+                    <h3>
+                        Anime Create
+                    </h3>
+
+
+                    <p>
+                        Anime мэдээлэл нэмэх,
+                        засах болон удирдах.
+                    </p>
+
+                </a>
+
+
+
+                <!-- =======================================
+                     HOME SLIDER
+                ======================================== -->
+
+                <a
+                    href="/admin/home-slides"
+                    class="admin-card"
+                >
+
+                    <span class="admin-arrow">
+                        →
+                    </span>
+
+
+                    <div
+                        class="
+                            admin-icon
+                            icon-slider
+                        "
+                    >
+                        🖼️
+                    </div>
+
+
+                    <h3>
+                        Home Slider
+                    </h3>
+
+
+                    <p>
+                        Нүүр хуудасны slider зураг,
+                        дараалал болон мэдээлэл удирдах.
+                    </p>
+
+                </a>
+
+
+
+                <!-- =======================================
+                     VIDEO MANAGEMENT
+                ======================================== -->
+
+                <a
+                    href="/admin/videos"
+                    class="admin-card"
+                >
+
+                    <span class="admin-arrow">
+                        →
+                    </span>
+
+
+                    <div
+                        class="
+                            admin-icon
+                            icon-video
+                        "
+                    >
+                        🎬
+                    </div>
+
+
+                    <h3>
+                        Видео удирдлага
+                    </h3>
+
+
+                    <p>
+                        Episode нэр, дугаар засах
+                        болон video бичлэг устгах.
+                    </p>
+
+                </a>
+
+
+
+                <!-- =======================================
+                     FILE MANAGEMENT
+                ======================================== -->
+
+                <a
+                    href="/admin/files"
+                    class="admin-card"
+                >
+
+                    <span class="admin-arrow">
+                        →
+                    </span>
+
+
+                    <div
+                        class="
+                            admin-icon
+                            icon-file
+                        "
+                    >
+                        📁
+                    </div>
+
+
+                    <h3>
+                        Файл удирдлага
+                    </h3>
+
+
+                    <p>
+                        PDF, ZIP, RAR файл upload хийх
+                        болон Telegram мэдээллийг харах.
+                    </p>
+
+                </a>
+
+
+            </div>
+
+        </section>
+
+    {% endif %}
+
+
+</div>
+
+{% endblock %}
+```
