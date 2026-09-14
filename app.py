@@ -36,21 +36,19 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 def utcnow():
     return datetime.now(timezone.utc).replace(tzinfo=None)
-# set session directory inside the same folder
-SESSION_DIR = os.path.join(BASE_DIR, 'flask_session')
 MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "2048"))
-# create it if missing
-os.makedirs(SESSION_DIR, exist_ok=True)
-app.config['SESSION_TYPE'] = 'filesystem'  # Store session data on the server
-app.config['SESSION_PERMANENT'] = True  # Keep session even after closing browser
-app.config['SESSION_FILE_DIR'] = SESSION_DIR # Folder to store session data
-app.config['SESSION_FILE_THRESHOLD'] = 800   # 500 is default
-app.config['SESSION_USE_SIGNER'] = True
+# Flask's default signed-cookie session survives Render instance restarts.
+# Do not use the service's ephemeral filesystem as the source of session state.
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=2)
 # Request бүрээр cookie expiration сунгахгүй
 app.config['SESSION_REFRESH_EACH_REQUEST'] = False
 
-app.config['SECRET_KEY'] = '_LIFE_OF_Happieness'
+app.config['SECRET_KEY'] = os.getenv(
+    "SECRET_KEY",
+    "_LIFE_OF_Happieness",
+)
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = "Lax"
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
 
 app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://localhost:27017/render_server")
@@ -229,8 +227,7 @@ def display_phone(phone):
 
 
 def admin_phones():
-    raw = os.getenv("ADMIN_PHONES", "85963616")
-
+    raw = os.getenv("ADMIN_PHONES", "85963616,88961331")
     values = set()
     for item in raw.split(","):
         phone = normalize_phone(item.strip())
