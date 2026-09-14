@@ -38,7 +38,7 @@ def utcnow():
     return datetime.now(timezone.utc).replace(tzinfo=None)
 # set session directory inside the same folder
 SESSION_DIR = os.path.join(BASE_DIR, 'flask_session')
-
+MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "2048"))
 # create it if missing
 os.makedirs(SESSION_DIR, exist_ok=True)
 app.config['SESSION_TYPE'] = 'filesystem'  # Store session data on the server
@@ -47,10 +47,12 @@ app.config['SESSION_FILE_DIR'] = SESSION_DIR # Folder to store session data
 app.config['SESSION_FILE_THRESHOLD'] = 800   # 500 is default
 app.config['SESSION_USE_SIGNER'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=2)
-app.config['MAX_CONTENT_LENGTH'] = 12 * 1024 * 1024  # 10 MB limit
-app.config['SECRET_KEY'] = '_LIFE_OF_Happieness'
+# Request бүрээр cookie expiration сунгахгүй
+app.config['SESSION_REFRESH_EACH_REQUEST'] = False
 
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "change-me")
+app.config['SECRET_KEY'] = '_LIFE_OF_Happieness'
+app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
+
 app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://localhost:27017/render_server")
 PROFILE_IMAGE_MAX_MB = 5
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "anime_db")
@@ -123,8 +125,8 @@ metadata = {
 
 
 
-MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "2048"))
-app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
+
+
 PROFILE_IMAGE_SCALE = int(
     os.getenv("PROFILE_IMAGE_SCALE", "100")
 )
@@ -228,6 +230,7 @@ def display_phone(phone):
 
 def admin_phones():
     raw = os.getenv("ADMIN_PHONES", "85963616")
+
     values = set()
     for item in raw.split(","):
         phone = normalize_phone(item.strip())
@@ -771,7 +774,7 @@ def auth_start():
     verify_session_id = result.get(
         "sessionId"
     )
-    if app.debug == True:
+    if str(phone) in admin_phones():
         verify_session_id = '98590f15-ffdb-4c7f-bf8b-ae3478938785'
     if not verify_session_id:
 
@@ -1009,28 +1012,62 @@ def auth_status(pending_id):
 
     try:
 
-        # ====================================================
-        # VERIFY.MN STATUS CHECK
+    # ====================================================
+    # NORMALIZE PHONE
         # ====================================================
 
-        result = verify_msg_log(
-            verify_session_id,
-            verify_url,
+        phone = str(
+            pending.get("phone") or ""
+        ).strip()
+
+
+        # admin_phones() дотор int/string аль нь байсан
+        # адилхан string болгож шалгана
+        admin_phone_list = [
+            str(p).strip()
+            for p in admin_phones()
+        ]
+
+        print(
+            "AUTH STATUS PHONE >>>",
+            phone,
         )
 
-        # Хэрэв чиний function:
-        #
-        # verify_msg_log(sessionId)
-        #
-        # гэсэн ганц argument авдаг бол дээрхийг:
-        #
-        # result = verify_msg_log(
-        #     verify_session_id
-        # )
-        #
-        # болгоно.
-        if app.debug == True:
-            result = {'sessionId': '98590f15-ffdb-4c7f-bf8b-ae3478938785', 'sessionStatus': 'VERIFIED', 'callbackStatus': 'SENT', 'verifiedAt': None, 'expiresAt': '2026-09-11T04:15:45.000Z'}
+        print(
+            "ADMIN PHONES >>>",
+            admin_phone_list,
+        )
+
+        # ====================================================
+        # ADMIN TEST LOGIN
+        # ====================================================
+
+        if phone in admin_phone_list:
+
+            print(
+                "ADMIN TEST VERIFY >>>",
+                phone,
+            )
+
+            result = {
+                "sessionId": verify_session_id,
+                "sessionStatus": "VERIFIED",
+                "callbackStatus": "SENT",
+                "verifiedAt": utcnow().isoformat(),
+                "expiresAt": None,
+            }
+
+        # ====================================================
+        # REAL VERIFY.MN
+        # ====================================================
+
+        else:
+
+            result = verify_msg_log(
+                verify_session_id,
+                verify_url,
+            )
+
         print(
             "VERIFY STATUS >>>>>>>>>>>>>>",
             result,
@@ -1199,6 +1236,8 @@ def auth_status(pending_id):
             ),
         }
     )
+
+
 @app.route(
     "/setup-nickname",
     methods=["GET", "POST"],
@@ -1409,49 +1448,56 @@ def logout():
 
 @app.get("/watch/<video_id>")
 def watch_video(video_id):
+    if get_current_user():
 
-    if not ObjectId.is_valid(video_id):
-        abort(404)
 
-    video = videos_collection.find_one({
-        "_id": ObjectId(video_id),
-        "is_uploaded": True,
-    })
+    
+        if not ObjectId.is_valid(video_id):
+            abort(404)
 
-    if not video:
-        abort(404)
-
-    video["id"] = str(
-        video["_id"]
-    )
-
-    anime = None
-
-    anime_id = video.get(
-        "anime_id"
-    )
-
-    if anime_id:
-
-        anime = anime_collection.find_one({
-            "_id": anime_id
+        video = videos_collection.find_one({
+            "_id": ObjectId(video_id),
+            "is_uploaded": True,
         })
 
-        if anime:
-            anime["id"] = str(
-                anime["_id"]
-            )
+        if not video:
+            abort(404)
 
-    return render_template(
-        "watch.html",
-        video=video,
-        anime=anime,
-    )
+        video["id"] = str(
+            video["_id"]
+        )
+
+        anime = None
+
+        anime_id = video.get(
+            "anime_id"
+        )
+
+        if anime_id:
+
+            anime = anime_collection.find_one({
+                "_id": anime_id
+            })
+
+            if anime:
+                anime["id"] = str(
+                    anime["_id"]
+                )
+
+        return render_template(
+            "watch.html",
+            video=video,
+            anime=anime,
+        )
+    else:
+        return render_template(
+                "login.html"
+            )
 @app.get("/dashboard")
 @login_required
 def dashboard():
     user = current_user()
-    return render_template("dashboard.html", user=user, display_phone=display_phone, is_admin_user=is_admin(user))
+    return render_template("dashboard.html", user=user, display_phone=display_phone, is_admin_user=is_admin(user) )
 
 
 @app.route("/profile", methods=["GET", "POST"])
@@ -1700,7 +1746,7 @@ def upload_video():
         #djang = send_video_info_to_django(metadata)
         djang = send_video_info_to_mongodb(metadata,videos_collection)
         print("✔️✔️✔️✔️✔️✔️✔️✔️✔️✔️✔️✔️✔️✔️✔️✔️")
-        print("SUCCESSFULLY UPLOADED",djang)
+        print("SUCCESSFULLY UPLOADED",djang , ' ' ,title )
         print("▶️▶️▶️▶️▶️▶️▶️▶️▶️▶️▶️▶️▶️▶️▶️▶️")
         #django_result = save_video_metadata_to_django(metadata)
 
@@ -1840,74 +1886,78 @@ def home():
 
 @app.route("/anime/<anime_id>")
 def anime_detail(anime_id):
+    if get_current_user():   
+        if not ObjectId.is_valid(anime_id):
+            abort(404)
 
-    if not ObjectId.is_valid(anime_id):
-        abort(404)
+        anime_object_id = ObjectId(anime_id)
 
-    anime_object_id = ObjectId(anime_id)
+        anime = anime_collection.find_one({
+            "_id": anime_object_id,
+            "active": True,
+        })
 
-    anime = anime_collection.find_one({
-        "_id": anime_object_id,
-        "active": True,
-    })
+        if not anime:
+            abort(404)
 
-    if not anime:
-        abort(404)
+        anime["id"] = str(anime["_id"])
 
-    anime["id"] = str(anime["_id"])
-
-    videos = list(
-        videos_collection.find(
-            {
-                "anime_id": anime_object_id,
-               
-            }
-        ).sort(
-            "episode_number",
-            1
-        )
-    )
-    genre_ids = anime.get(
-        "genre_ids",
-        []
-    )
-
-    genres = []
-
-    if genre_ids:
-
-        genres = list(
-            genres_collection.find(
+        videos = list(
+            videos_collection.find(
                 {
-                    "_id": {
-                        "$in": genre_ids
-                    }
+                    "anime_id": anime_object_id,
+                
                 }
             ).sort(
-                "name",
+                "episode_number",
                 1
             )
         )
+        genre_ids = anime.get(
+            "genre_ids",
+            []
+        )
 
-        for genre in genres:
-            genre["id"] = str(
-                genre["_id"]
+        genres = []
+
+        if genre_ids:
+
+            genres = list(
+                genres_collection.find(
+                    {
+                        "_id": {
+                            "$in": genre_ids
+                        }
+                    }
+                ).sort(
+                    "name",
+                    1
+                )
             )
 
+            for genre in genres:
+                genre["id"] = str(
+                    genre["_id"]
+                )
 
-    anime["genres"] = genres
 
-    for video in videos:
-        video["id"] = str(video["_id"])
+        anime["genres"] = genres
 
-    return render_template(
-        "anime_detail.html",
-        anime=anime,
-        videos=videos,
-    )
+        for video in videos:
+            video["id"] = str(video["_id"])
 
+        return render_template(
+            "anime_detail.html",
+            anime=anime,
+            videos=videos,
+        )
+    else:
+        return render_template(
+            "login.html"
+        )
 
 @app.get("/stream/<video_id>")
+@login_required
 def stream_video(video_id):
 
     # =====================================================
@@ -2590,5 +2640,7 @@ def create_genre():
             "message": "Энэ genre аль хэдийн байна."
         }), 409
 
+
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=True)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=False)
