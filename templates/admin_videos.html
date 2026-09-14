@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="mn">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <title>Видео удирдлага</title>
+</head>
+
+<body class="bg-slate-50 min-h-screen">
+
+    <div
+        class="
+            max-w-7xl
+            mx-auto
+            px-6
+            py-8
+        "
+    >
+
+        <!-- HEADER -->
+
+        <div
+            class="
+                flex
+                items-center
+                justify-between
+                mb-8
+            "
+        >
+
+            <div>
+                <a
+                    href="/dashboard"
+                    class="
+                        text-sm
+                        text-indigo-600
+                        hover:text-indigo-800
+                        font-medium
+                    "
+                >
+                    ← Dashboard
+                </a>
+
+                <h1
+                    class="
+                        text-3xl
+                        font-bold
+                        text-slate-900
+                        mt-2
+                    "
+                >
+                    Видео удирдлага
+                </h1>
+
+                <p
+                    class="
+                        text-slate-500
+                        mt-1
+                    "
+                >
+                    Видео засах болон устгах
+                </p>
+            </div>
+
+
+            <button hidden
+                onclick="deleteAllVideos()"
+                class="
+                    bg-red-50
+                    text-red-600
+                    border
+                    border-red-200
+                    px-4
+                    py-2.5
+                    rounded-xl
+                    font-semibold
+                    hover:bg-red-100
+                    transition
+                "
+            >
+                Бүх видеог устгах
+            </button>
+
+        </div>
+
+
+        <!-- COUNT -->
+
+        <div
+            class="
+                bg-white
+                rounded-2xl
+                border
+                border-slate-200
+                shadow-sm
+                mb-5
+                px-5
+                py-4
+            "
+        >
+            Нийт видео:
+
+            <span
+                id="videoCount"
+                class="
+                    font-bold
+                    text-indigo-600
+                "
+            >
+                0
+            </span>
+        </div>
+
+
+        <!-- TABLE -->
+
+        <div
+            class="
+                bg-white
+                rounded-2xl
+                border
+                border-slate-200
+                shadow-sm
+                overflow-hidden
+            "
+        >
+
+            <div class="overflow-x-auto">
+
+                <table
+                    class="
+                        w-full
+                        text-sm
+                    "
+                >
+
+                    <thead
+                        class="
+                            bg-slate-100
+                            text-slate-600
+                        "
+                    >
+
+                        <tr>
+
+                            <th
+                                class="
+                                    text-left
+                                    px-5
+                                    py-4
+                                "
+                            >
+                                Episode
+                            </th>
+
+                            <th
+                                class="
+                                    text-left
+                                    px-5
+                                    py-4
+                                "
+                            >
+                                Нэр
+                            </th>
+
+                            <th
+                                class="
+                                    text-left
+                                    px-5
+                                    py-4
+                                "
+                            >
+                                File
+                            </th>
+
+                            <th
+                                class="
+                                    text-left
+                                    px-5
+                                    py-4
+                                "
+                            >
+                                Telegram ID
+                            </th>
+
+                            <th
+                                class="
+                                    text-right
+                                    px-5
+                                    py-4
+                                "
+                            >
+                                Үйлдэл
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody
+                        id="videoTable"
+                        class="
+                            divide-y
+                            divide-slate-100
+                        "
+                    >
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+<script>
+
+let videos = [];
+
+
+/* =========================================================
+   LOAD VIDEOS
+========================================================= */
+
+async function loadVideos() {
+
+    const table =
+        document.getElementById(
+            "videoTable"
+        );
+
+    table.innerHTML = `
+        <tr>
+            <td
+                colspan="5"
+                class="
+                    text-center
+                    py-10
+                    text-slate-400
+                "
+            >
+                Уншиж байна...
+            </td>
+        </tr>
+    `;
+
+    try {
+
+        const response = await fetch(
+            "/api/admin/videos"
+        );
+
+        const data =
+            await response.json();
+
+        if (!data.success) {
+            throw new Error(
+                data.message ||
+                "Алдаа гарлаа"
+            );
+        }
+
+        videos =
+            data.videos || [];
+
+        renderVideos();
+
+    } catch (error) {
+
+        console.error(error);
+
+        table.innerHTML = `
+            <tr>
+                <td
+                    colspan="5"
+                    class="
+                        text-center
+                        py-10
+                        text-red-500
+                    "
+                >
+                    Видео уншихад алдаа гарлаа.
+                </td>
+            </tr>
+        `;
+
+    }
+
+}
+
+
+/* =========================================================
+   RENDER
+========================================================= */
+
+function renderVideos() {
+
+    const table =
+        document.getElementById(
+            "videoTable"
+        );
+
+    const count =
+        document.getElementById(
+            "videoCount"
+        );
+
+    count.textContent =
+        videos.length;
+
+    if (!videos.length) {
+
+        table.innerHTML = `
+            <tr>
+                <td
+                    colspan="5"
+                    class="
+                        text-center
+                        py-12
+                        text-slate-400
+                    "
+                >
+                    Видео байхгүй байна.
+                </td>
+            </tr>
+        `;
+
+        return;
+    }
+
+
+    table.innerHTML =
+        videos.map(video => `
+
+            <tr
+                class="
+                    hover:bg-slate-50
+                    transition
+                "
+            >
+
+                <!-- EPISODE -->
+
+                <td
+                    class="
+                        px-5
+                        py-4
+                        w-32
+                    "
+                >
+
+                    <input
+                        id="episode-${video.id}"
+                        type="number"
+                        value="${video.episode_number ?? ""}"
+                        class="
+                            w-20
+                            border
+                            border-slate-200
+                            rounded-lg
+                            px-3
+                            py-2
+                            outline-none
+                            focus:border-indigo-500
+                            focus:ring-2
+                            focus:ring-indigo-100
+                        "
+                    >
+
+                </td>
+
+
+                <!-- TITLE -->
+
+                <td
+                    class="
+                        px-5
+                        py-4
+                        min-w-[280px]
+                    "
+                >
+
+                    <input
+                        id="title-${video.id}"
+                        type="text"
+                        value="${escapeHtml(
+                            video.title || ""
+                        )}"
+                        class="
+                            w-full
+                            border
+                            border-slate-200
+                            rounded-lg
+                            px-3
+                            py-2
+                            outline-none
+                            focus:border-indigo-500
+                            focus:ring-2
+                            focus:ring-indigo-100
+                        "
+                    >
+
+                </td>
+
+
+                <!-- FILE -->
+
+                <td
+                    class="
+                        px-5
+                        py-4
+                        text-slate-500
+                    "
+                >
+                    ${escapeHtml(
+                        video.file_name || "-"
+                    )}
+                </td>
+
+
+                <!-- TELEGRAM -->
+
+                <td
+                    class="
+                        px-5
+                        py-4
+                        text-slate-500
+                    "
+                >
+                    ${video.telegram_message_id || "-"}
+                </td>
+
+
+                <!-- ACTION -->
+
+                <td
+                    class="
+                        px-5
+                        py-4
+                    "
+                >
+
+                    <div
+                        class="
+                            flex
+                            justify-end
+                            gap-2
+                        "
+                    >
+
+                        <button
+                            onclick="updateVideo('${video.id}')"
+                            class="
+                                px-3
+                                py-2
+                                rounded-lg
+                                bg-indigo-50
+                                text-indigo-600
+                                font-semibold
+                                hover:bg-indigo-100
+                            "
+                        >
+                            Хадгалах
+                        </button>
+
+
+                        <button
+                            onclick="deleteVideo('${video.id}')"
+                            class="
+                                px-3
+                                py-2
+                                rounded-lg
+                                bg-red-50
+                                text-red-600
+                                font-semibold
+                                hover:bg-red-100
+                            "
+                        >
+                            Устгах
+                        </button>
+
+                    </div>
+
+                </td>
+
+            </tr>
+
+        `).join("");
+
+}
+
+
+/* =========================================================
+   UPDATE
+========================================================= */
+
+async function updateVideo(id) {
+
+    const title =
+        document.getElementById(
+            `title-${id}`
+        ).value.trim();
+
+    const episodeNumber =
+        document.getElementById(
+            `episode-${id}`
+        ).value;
+
+
+    if (!title) {
+
+        alert(
+            "Видео нэр оруулна уу."
+        );
+
+        return;
+    }
+
+
+    try {
+
+        const response = await fetch(
+            `/api/admin/videos/${id}`,
+            {
+                method: "PUT",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+                    title: title,
+                    episode_number:
+                        episodeNumber
+                })
+            }
+        );
+
+
+        const data =
+            await response.json();
+
+
+        if (!data.success) {
+
+            alert(
+                data.message ||
+                "Хадгалахад алдаа гарлаа."
+            );
+
+            return;
+        }
+
+
+        alert(
+            "Амжилттай хадгалагдлаа."
+        );
+
+        await loadVideos();
+
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert(
+            "Server алдаа гарлаа."
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   DELETE ONE
+========================================================= */
+
+async function deleteVideo(id) {
+
+    if (!confirm(
+        "Энэ видеог устгах уу?"
+    )) {
+        return;
+    }
+
+
+    try {
+
+        const response = await fetch(
+            `/api/admin/videos/${id}`,
+            {
+                method: "DELETE"
+            }
+        );
+
+
+        const data =
+            await response.json();
+
+
+        if (!data.success) {
+
+            alert(
+                data.message ||
+                "Устгахад алдаа гарлаа."
+            );
+
+            return;
+        }
+
+
+        await loadVideos();
+
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert(
+            "Server алдаа гарлаа."
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   DELETE ALL
+========================================================= */
+
+async function deleteAllVideos() {
+
+    const confirmed = confirm(
+        "АНХААР!\n\n" +
+        "Videos collection доторх " +
+        "БҮХ бичлэгийг устгах уу?"
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+
+    const secondConfirm = confirm(
+        "Үнэхээр бүгдийг устгах уу?\n" +
+        "Энэ үйлдлийг буцаах боломжгүй."
+    );
+
+    if (!secondConfirm) {
+        return;
+    }
+
+
+    try {
+
+        const response = await fetch(
+            "/api/admin/videos",
+            {
+                method: "DELETE"
+            }
+        );
+
+
+        const data =
+            await response.json();
+
+
+        if (!data.success) {
+
+            alert(
+                data.message ||
+                "Алдаа гарлаа."
+            );
+
+            return;
+        }
+
+
+        alert(
+            data.message
+        );
+
+        await loadVideos();
+
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert(
+            "Server алдаа гарлаа."
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   ESCAPE HTML
+========================================================= */
+
+function escapeHtml(value) {
+
+    return String(value)
+        .replaceAll(
+            "&",
+            "&amp;"
+        )
+        .replaceAll(
+            "<",
+            "&lt;"
+        )
+        .replaceAll(
+            ">",
+            "&gt;"
+        )
+        .replaceAll(
+            '"',
+            "&quot;"
+        )
+        .replaceAll(
+            "'",
+            "&#039;"
+        );
+
+}
+
+
+document.addEventListener(
+    "DOMContentLoaded",
+    loadVideos
+);
+
+</script>
+
+</body>
+</html>

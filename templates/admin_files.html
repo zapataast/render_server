@@ -1,0 +1,1577 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <title>File Upload</title>
+</head>
+
+<body class="bg-slate-50 min-h-screen">
+
+    <div class="max-w-3xl mx-auto px-5 py-10">
+
+        <!-- HEADER -->
+
+        <div class="mb-8">
+
+            <a
+                href="/dashboard"
+                class="
+                    inline-block
+                    text-sm
+                    font-semibold
+                    text-indigo-600
+                    hover:text-indigo-800
+                    mb-3
+                "
+            >
+                ← Dashboard
+            </a>
+
+            <h1 class="text-3xl font-bold text-slate-900">
+                File Upload
+            </h1>
+
+            <p class="text-slate-500 mt-2">
+                PDF, ZIP, RAR файлыг Telegram channel руу upload хийнэ.
+            </p>
+
+        </div>
+
+
+        <!-- CARD -->
+
+        <div
+            class="
+                bg-white
+                border
+                border-slate-200
+                rounded-2xl
+                shadow-sm
+                p-6
+            "
+        >
+
+            <form
+                id="fileUploadForm"
+                class="space-y-5"
+            >
+
+                <!-- NAME -->
+
+                <div>
+
+                    <label
+                        class="
+                            block
+                            text-sm
+                            font-semibold
+                            text-slate-700
+                            mb-2
+                        "
+                    >
+                        Нэр
+                    </label>
+
+                    <input
+                        type="text"
+                        id="name"
+                        name="name"
+                        placeholder="Жишээ: Odoo 19 source"
+                        class="
+                            w-full
+                            border
+                            border-slate-200
+                            rounded-xl
+                            px-4
+                            py-3
+                            outline-none
+                            transition
+                            focus:border-indigo-500
+                            focus:ring-2
+                            focus:ring-indigo-100
+                        "
+                    >
+
+                </div>
+
+
+                <!-- DESCRIPTION -->
+
+                <div>
+
+                    <label
+                        class="
+                            block
+                            text-sm
+                            font-semibold
+                            text-slate-700
+                            mb-2
+                        "
+                    >
+                        Тайлбар
+                    </label>
+
+                    <textarea
+                        id="description"
+                        name="description"
+                        rows="4"
+                        placeholder="Файлын тайлбар..."
+                        class="
+                            w-full
+                            border
+                            border-slate-200
+                            rounded-xl
+                            px-4
+                            py-3
+                            outline-none
+                            resize-none
+                            transition
+                            focus:border-indigo-500
+                            focus:ring-2
+                            focus:ring-indigo-100
+                        "
+                    ></textarea>
+
+                </div>
+
+
+                <!-- FILE -->
+
+                <div>
+
+                    <label
+                        class="
+                            block
+                            text-sm
+                            font-semibold
+                            text-slate-700
+                            mb-2
+                        "
+                    >
+                        Файл
+                    </label>
+
+                    <label
+                        for="file"
+                        class="
+                            flex
+                            flex-col
+                            items-center
+                            justify-center
+                            w-full
+                            min-h-[160px]
+                            border-2
+                            border-dashed
+                            border-slate-300
+                            rounded-2xl
+                            bg-slate-50
+                            hover:bg-indigo-50
+                            hover:border-indigo-400
+                            transition
+                            cursor-pointer
+                        "
+                    >
+
+                        <div
+                            class="
+                                text-4xl
+                                mb-3
+                            "
+                        >
+                            📁
+                        </div>
+
+                        <div
+                            class="
+                                font-semibold
+                                text-slate-700
+                            "
+                        >
+                            Файл сонгох
+                        </div>
+
+                        <div
+                            class="
+                                text-sm
+                                text-slate-400
+                                mt-1
+                            "
+                        >
+                            PDF, ZIP, RAR
+                        </div>
+
+                        <div
+                            id="selectedFileName"
+                            class="
+                                text-sm
+                                font-semibold
+                                text-indigo-600
+                                mt-3
+                                hidden
+                            "
+                        ></div>
+
+                    </label>
+
+                    <input
+                        type="file"
+                        id="file"
+                        name="file"
+                        accept=".pdf,.zip,.rar"
+                        class="hidden"
+                        required
+                    >
+
+                </div>
+
+
+                <!-- FILE INFO -->
+
+                <div
+                    id="fileInfo"
+                    class="
+                        hidden
+                        bg-slate-50
+                        border
+                        border-slate-200
+                        rounded-xl
+                        p-4
+                    "
+                >
+
+                    <div class="text-sm text-slate-500">
+                        Файлын хэмжээ
+                    </div>
+
+                    <div
+                        id="fileSize"
+                        class="
+                            font-semibold
+                            text-slate-800
+                            mt-1
+                        "
+                    >
+                    </div>
+
+                </div>
+
+
+                <!-- PROGRESS -->
+
+                <div
+                    id="uploadProgressWrapper"
+                    class="hidden"
+                >
+
+                    <div
+                        class="
+                            flex
+                            justify-between
+                            text-sm
+                            mb-2
+                        "
+                    >
+
+                        <span class="text-slate-600">
+                            Upload хийж байна...
+                        </span>
+
+                        <span
+                            id="uploadPercent"
+                            class="
+                                font-semibold
+                                text-indigo-600
+                            "
+                        >
+                            0%
+                        </span>
+
+                    </div>
+
+                    <div
+                        class="
+                            w-full
+                            h-2
+                            bg-slate-200
+                            rounded-full
+                            overflow-hidden
+                        "
+                    >
+
+                        <div
+                            id="uploadProgress"
+                            class="
+                                h-full
+                                bg-indigo-600
+                                rounded-full
+                                transition-all
+                            "
+                            style="width: 0%"
+                        ></div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- MESSAGE -->
+
+                <div
+                    id="messageBox"
+                    class="
+                        hidden
+                        rounded-xl
+                        px-4
+                        py-3
+                        text-sm
+                        font-medium
+                    "
+                ></div>
+
+
+                <!-- BUTTON -->
+
+                <button
+                    type="submit"
+                    id="uploadButton"
+                    class="
+                        w-full
+                        bg-indigo-600
+                        text-white
+                        rounded-xl
+                        px-5
+                        py-3
+                        font-semibold
+                        hover:bg-indigo-700
+                        disabled:opacity-50
+                        disabled:cursor-not-allowed
+                        transition
+                    "
+                >
+                    Telegram руу Upload хийх
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+    <!-- =========================================
+     UPLOADED FILES
+========================================== -->
+
+<div class="mt-8">
+
+    <div
+        class="
+            flex
+            items-center
+            justify-between
+            mb-4
+        "
+    >
+
+        <div>
+
+            <h2
+                class="
+                    text-xl
+                    font-bold
+                    text-slate-900
+                "
+            >
+                Upload хийсэн файлууд
+            </h2>
+
+            <p
+                class="
+                    text-sm
+                    text-slate-500
+                    mt-1
+                "
+            >
+                Telegram дээр хадгалагдсан файлууд
+            </p>
+
+        </div>
+
+
+        <div
+            class="
+                bg-indigo-50
+                text-indigo-700
+                px-3
+                py-1.5
+                rounded-lg
+                text-sm
+                font-semibold
+            "
+        >
+            Нийт:
+            <span id="totalFiles">
+                0
+            </span>
+        </div>
+
+    </div>
+
+
+    <div
+        class="
+            bg-white
+            border
+            border-slate-200
+            rounded-2xl
+            shadow-sm
+            overflow-hidden
+        "
+    >
+
+        <div class="overflow-x-auto">
+
+            <table
+                class="
+                    w-full
+                    text-sm
+                "
+            >
+
+                <thead
+                    class="
+                        bg-slate-50
+                        text-slate-600
+                    "
+                >
+
+                    <tr>
+
+                        <th
+                            class="
+                                text-left
+                                px-5
+                                py-4
+                            "
+                        >
+                            Файл
+                        </th>
+
+                        <th
+                            class="
+                                text-left
+                                px-5
+                                py-4
+                            "
+                        >
+                            Төрөл
+                        </th>
+
+                        <th
+                            class="
+                                text-left
+                                px-5
+                                py-4
+                            "
+                        >
+                            Хэмжээ
+                        </th>
+
+                        <th
+                            class="
+                                text-left
+                                px-5
+                                py-4
+                            "
+                        >
+                            Telegram
+                        </th>
+
+                        <th
+                            class="
+                                text-left
+                                px-5
+                                py-4
+                            "
+                        >
+                            Огноо
+                        </th>
+
+                        <th
+                            class="
+                                text-right
+                                px-5
+                                py-4
+                            "
+                        >
+                            Link
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody
+                    id="uploadedFilesTable"
+                    class="
+                        divide-y
+                        divide-slate-100
+                    "
+                >
+
+                    <tr>
+
+                        <td
+                            colspan="6"
+                            class="
+                                text-center
+                                py-10
+                                text-slate-400
+                            "
+                        >
+                            Уншиж байна...
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+<script>
+
+const form =
+    document.getElementById(
+        "fileUploadForm"
+    );
+
+const fileInput =
+    document.getElementById(
+        "file"
+    );
+
+const nameInput =
+    document.getElementById(
+        "name"
+    );
+
+const selectedFileName =
+    document.getElementById(
+        "selectedFileName"
+    );
+
+const fileInfo =
+    document.getElementById(
+        "fileInfo"
+    );
+
+const fileSize =
+    document.getElementById(
+        "fileSize"
+    );
+
+const uploadButton =
+    document.getElementById(
+        "uploadButton"
+    );
+
+const messageBox =
+    document.getElementById(
+        "messageBox"
+    );
+
+const progressWrapper =
+    document.getElementById(
+        "uploadProgressWrapper"
+    );
+
+const progressBar =
+    document.getElementById(
+        "uploadProgress"
+    );
+
+const uploadPercent =
+    document.getElementById(
+        "uploadPercent"
+    );
+
+
+/* =========================================================
+   FILE SELECT
+========================================================= */
+
+fileInput.addEventListener(
+    "change",
+    function () {
+
+        const file =
+            this.files[0];
+
+        if (!file) {
+            return;
+        }
+
+
+        // filename харуулах
+
+        selectedFileName.textContent =
+            file.name;
+
+        selectedFileName.classList.remove(
+            "hidden"
+        );
+
+
+        // size харуулах
+
+        fileSize.textContent =
+            formatFileSize(
+                file.size
+            );
+
+        fileInfo.classList.remove(
+            "hidden"
+        );
+
+
+        // NAME хоосон байвал
+        // filename-ээс автоматаар бөглөнө
+
+        if (!nameInput.value.trim()) {
+
+            const baseName =
+                file.name.replace(
+                    /\.[^/.]+$/,
+                    ""
+                );
+
+            nameInput.value =
+                baseName;
+        }
+
+    }
+);
+
+
+/* =========================================================
+   SUBMIT
+========================================================= */
+
+form.addEventListener(
+    "submit",
+    function (event) {
+
+        event.preventDefault();
+
+        hideMessage();
+
+
+        const file =
+            fileInput.files[0];
+
+        if (!file) {
+
+            showMessage(
+                "Файл сонгоно уу.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        const allowedExtensions = [
+            "pdf",
+            "zip",
+            "rar",
+        ];
+
+
+        const extension =
+            file.name
+                .split(".")
+                .pop()
+                .toLowerCase();
+
+
+        if (
+            !allowedExtensions.includes(
+                extension
+            )
+        ) {
+
+            showMessage(
+                "Зөвхөн PDF, ZIP, RAR файл upload хийнэ.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        const formData =
+            new FormData(form);
+
+
+        uploadFile(
+            formData
+        );
+
+    }
+);
+
+
+/* =========================================================
+   UPLOAD
+========================================================= */
+
+function uploadFile(
+    formData
+) {
+
+    const xhr =
+        new XMLHttpRequest();
+
+
+    xhr.open(
+        "POST",
+        "/api/admin/files/upload",
+        true
+    );
+
+
+    uploadButton.disabled =
+        true;
+
+    uploadButton.textContent =
+        "Upload хийж байна...";
+
+
+    progressWrapper.classList.remove(
+        "hidden"
+    );
+
+    progressBar.style.width =
+        "0%";
+
+    uploadPercent.textContent =
+        "0%";
+
+
+    /* =====================================================
+       PROGRESS
+    ===================================================== */
+
+    xhr.upload.addEventListener(
+        "progress",
+        function (event) {
+
+            if (!event.lengthComputable) {
+                return;
+            }
+
+            const percent =
+                Math.round(
+                    (
+                        event.loaded /
+                        event.total
+                    ) * 100
+                );
+
+
+            progressBar.style.width =
+                `${percent}%`;
+
+            uploadPercent.textContent =
+                `${percent}%`;
+
+        }
+    );
+
+
+    /* =====================================================
+       COMPLETE
+    ===================================================== */
+
+    xhr.addEventListener(
+        "load",
+        function () {
+
+            uploadButton.disabled =
+                false;
+
+            uploadButton.textContent =
+                "Telegram руу Upload хийх";
+
+
+            let data = {};
+
+            try {
+
+                data = JSON.parse(
+                    xhr.responseText
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "JSON parse error:",
+                    error
+                );
+
+            }
+
+
+            if (
+                xhr.status >= 200 &&
+                xhr.status < 300 &&
+                data.success
+            ) {
+
+                progressBar.style.width =
+                    "100%";
+
+                uploadPercent.textContent =
+                    "100%";
+
+
+                showMessage(
+                    data.message ||
+                    "Файл амжилттай upload хийгдлээ.",
+                    "success"
+                );
+
+
+                console.log(
+                    "Uploaded file:",
+                    data.file
+                );
+
+
+                form.reset();
+
+                selectedFileName.classList.add(
+                    "hidden"
+                );
+
+                selectedFileName.textContent =
+                    "";
+
+                fileInfo.classList.add(
+                    "hidden"
+                );
+
+
+                setTimeout(
+                    function () {
+
+                        progressWrapper
+                            .classList
+                            .add(
+                                "hidden"
+                            );
+
+                    },
+                    1000
+                );
+
+
+                return;
+            }
+
+
+            showMessage(
+                data.message ||
+                "Upload хийхэд алдаа гарлаа.",
+                "error"
+            );
+
+        }
+    );
+
+
+    /* =====================================================
+       ERROR
+    ===================================================== */
+
+    xhr.addEventListener(
+        "error",
+        function () {
+
+            uploadButton.disabled =
+                false;
+
+            uploadButton.textContent =
+                "Telegram руу Upload хийх";
+
+
+            showMessage(
+                "Server холболтын алдаа гарлаа.",
+                "error"
+            );
+
+        }
+    );
+
+
+    xhr.send(
+        formData
+    );
+
+}
+
+
+/* =========================================================
+   MESSAGE
+========================================================= */
+
+function showMessage(
+    message,
+    type
+) {
+
+    messageBox.textContent =
+        message;
+
+    messageBox.className =
+        "rounded-xl px-4 py-3 text-sm font-medium";
+
+
+    if (
+        type === "success"
+    ) {
+
+        messageBox.classList.add(
+            "bg-green-50",
+            "text-green-700",
+            "border",
+            "border-green-200"
+        );
+
+    } else {
+
+        messageBox.classList.add(
+            "bg-red-50",
+            "text-red-700",
+            "border",
+            "border-red-200"
+        );
+
+    }
+
+
+    messageBox.classList.remove(
+        "hidden"
+    );
+
+}
+
+
+function hideMessage() {
+
+    messageBox.classList.add(
+        "hidden"
+    );
+
+}
+
+
+/* =========================================================
+   FORMAT FILE SIZE
+========================================================= */
+
+function formatFileSize(
+    bytes
+) {
+
+    if (!bytes) {
+        return "0 Bytes";
+    }
+
+
+    const units = [
+        "Bytes",
+        "KB",
+        "MB",
+        "GB",
+    ];
+
+
+    const index =
+        Math.floor(
+            Math.log(bytes) /
+            Math.log(1024)
+        );
+
+
+    const size =
+        bytes /
+        Math.pow(
+            1024,
+            index
+        );
+
+
+    return (
+        size.toFixed(
+            index === 0
+                ? 0
+                : 2
+        )
+        +
+        " "
+        +
+        units[index]
+    );
+
+}
+/* =========================================================
+   LOAD UPLOADED FILES
+========================================================= */
+
+async function loadUploadedFiles() {
+
+    const table =
+        document.getElementById(
+            "uploadedFilesTable"
+        );
+
+    const totalFiles =
+        document.getElementById(
+            "totalFiles"
+        );
+
+
+    table.innerHTML = `
+        <tr>
+            <td
+                colspan="6"
+                class="
+                    text-center
+                    py-10
+                    text-slate-400
+                "
+            >
+                Уншиж байна...
+            </td>
+        </tr>
+    `;
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/admin/files"
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!data.success) {
+
+            throw new Error(
+                data.message ||
+                "Files load failed"
+            );
+
+        }
+
+
+        const files =
+            data.files || [];
+
+
+        totalFiles.textContent =
+            files.length;
+
+
+        if (!files.length) {
+
+            table.innerHTML = `
+                <tr>
+
+                    <td
+                        colspan="6"
+                        class="
+                            text-center
+                            py-12
+                            text-slate-400
+                        "
+                    >
+                        Upload хийсэн файл байхгүй байна.
+                    </td>
+
+                </tr>
+            `;
+
+            return;
+        }
+
+
+        table.innerHTML =
+            files.map(
+                file => {
+
+                    const telegramInfo = `
+                        <div
+                            class="
+                                space-y-1
+                                text-xs
+                            "
+                        >
+
+                            <div>
+                                <span
+                                    class="
+                                        text-slate-400
+                                    "
+                                >
+                                    Channel:
+                                </span>
+
+                                <span
+                                    class="
+                                        text-slate-700
+                                        font-medium
+                                    "
+                                >
+                                    ${escapeHtml(
+                                        file.telegram_channel_id || "-"
+                                    )}
+                                </span>
+                            </div>
+
+                            <div>
+                                <span
+                                    class="
+                                        text-slate-400
+                                    "
+                                >
+                                    Msg:
+                                </span>
+
+                                <span
+                                    class="
+                                        text-slate-700
+                                        font-medium
+                                    "
+                                >
+                                    ${escapeHtml(
+                                        file.telegram_message_id || "-"
+                                    )}
+                                </span>
+                            </div>
+
+                        </div>
+                    `;
+
+
+                    let linkHtml = `
+                        <span
+                            class="
+                                text-slate-400
+                            "
+                        >
+                            -
+                        </span>
+                    `;
+
+
+                    if (
+                        file.telegram_link
+                    ) {
+
+                        linkHtml = `
+                            <a
+                                href="${file.telegram_link}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="
+                                    inline-flex
+                                    items-center
+                                    gap-1
+                                    bg-indigo-50
+                                    text-indigo-600
+                                    hover:bg-indigo-100
+                                    px-3
+                                    py-2
+                                    rounded-lg
+                                    font-semibold
+                                    transition
+                                "
+                            >
+                                Telegram ↗
+                            </a>
+                        `;
+
+                    }
+
+
+                    return `
+
+                        <tr
+                            class="
+                                hover:bg-slate-50
+                                transition
+                            "
+                        >
+
+                            <!-- FILE -->
+
+                            <td
+                                class="
+                                    px-5
+                                    py-4
+                                    min-w-[260px]
+                                "
+                            >
+
+                                <div
+                                    class="
+                                        flex
+                                        items-start
+                                        gap-3
+                                    "
+                                >
+
+                                    <div
+                                        class="
+                                            w-10
+                                            h-10
+                                            rounded-xl
+                                            bg-indigo-50
+                                            flex
+                                            items-center
+                                            justify-center
+                                            text-xl
+                                            shrink-0
+                                        "
+                                    >
+                                        ${getFileIcon(
+                                            file.file_type
+                                        )}
+                                    </div>
+
+
+                                    <div>
+
+                                        <div
+                                            class="
+                                                font-semibold
+                                                text-slate-900
+                                            "
+                                        >
+                                            ${escapeHtml(
+                                                file.name ||
+                                                file.file_name ||
+                                                "-"
+                                            )}
+                                        </div>
+
+
+                                        <div
+                                            class="
+                                                text-xs
+                                                text-slate-400
+                                                mt-1
+                                            "
+                                        >
+                                            ${escapeHtml(
+                                                file.file_name ||
+                                                "-"
+                                            )}
+                                        </div>
+
+
+                                        ${
+                                            file.description
+                                            ?
+                                            `
+                                                <div
+                                                    class="
+                                                        text-xs
+                                                        text-slate-500
+                                                        mt-1
+                                                    "
+                                                >
+                                                    ${escapeHtml(
+                                                        file.description
+                                                    )}
+                                                </div>
+                                            `
+                                            :
+                                            ""
+                                        }
+
+                                    </div>
+
+                                </div>
+
+                            </td>
+
+
+                            <!-- TYPE -->
+
+                            <td
+                                class="
+                                    px-5
+                                    py-4
+                                "
+                            >
+
+                                <span
+                                    class="
+                                        uppercase
+                                        bg-slate-100
+                                        text-slate-600
+                                        px-2.5
+                                        py-1
+                                        rounded-lg
+                                        text-xs
+                                        font-bold
+                                    "
+                                >
+                                    ${escapeHtml(
+                                        file.file_type ||
+                                        "-"
+                                    )}
+                                </span>
+
+                            </td>
+
+
+                            <!-- SIZE -->
+
+                            <td
+                                class="
+                                    px-5
+                                    py-4
+                                    whitespace-nowrap
+                                    text-slate-600
+                                "
+                            >
+                                ${formatFileSize(
+                                    file.file_size
+                                )}
+                            </td>
+
+
+                            <!-- TELEGRAM -->
+
+                            <td
+                                class="
+                                    px-5
+                                    py-4
+                                "
+                            >
+                                ${telegramInfo}
+                            </td>
+
+
+                            <!-- DATE -->
+
+                            <td
+                                class="
+                                    px-5
+                                    py-4
+                                    whitespace-nowrap
+                                    text-slate-500
+                                "
+                            >
+                                ${formatDate(
+                                    file.created_at
+                                )}
+                            </td>
+
+
+                            <!-- LINK -->
+
+                            <td
+                                class="
+                                    px-5
+                                    py-4
+                                    text-right
+                                "
+                            >
+                                ${linkHtml}
+                            </td>
+
+                        </tr>
+                    `;
+
+                }
+
+            ).join("");
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Load files error:",
+            error
+        );
+
+
+        table.innerHTML = `
+            <tr>
+
+                <td
+                    colspan="6"
+                    class="
+                        text-center
+                        py-10
+                        text-red-500
+                    "
+                >
+                    Файлууд уншихад алдаа гарлаа.
+                </td>
+
+            </tr>
+        `;
+
+    }
+
+}
+/* =========================================================
+   FILE ICON
+========================================================= */
+
+function getFileIcon(
+    fileType
+) {
+
+    const type =
+        String(
+            fileType || ""
+        ).toLowerCase();
+
+
+    if (
+        type === "pdf"
+    ) {
+        return "📕";
+    }
+
+
+    if (
+        type === "zip"
+    ) {
+        return "🗜️";
+    }
+
+
+    if (
+        type === "rar"
+    ) {
+        return "📦";
+    }
+
+
+    return "📄";
+}
+
+
+/* =========================================================
+   DATE FORMAT
+========================================================= */
+
+function formatDate(
+    value
+) {
+
+    if (!value) {
+        return "-";
+    }
+
+
+    const date =
+        new Date(
+            value
+        );
+
+
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
+        return "-";
+    }
+
+
+    return date.toLocaleString(
+        "mn-MN",
+        {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+        }
+    );
+
+}
+
+
+/* =========================================================
+   ESCAPE HTML
+========================================================= */
+
+function escapeHtml(
+    value
+) {
+
+    return String(
+        value ?? ""
+    )
+        .replaceAll(
+            "&",
+            "&amp;"
+        )
+        .replaceAll(
+            "<",
+            "&lt;"
+        )
+        .replaceAll(
+            ">",
+            "&gt;"
+        )
+        .replaceAll(
+            '"',
+            "&quot;"
+        )
+        .replaceAll(
+            "'",
+            "&#039;"
+        );
+
+}
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        loadUploadedFiles();
+
+    }
+);
+</script>
+
+</body>
+</html>

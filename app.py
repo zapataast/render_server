@@ -1,7 +1,7 @@
 import os, re, asyncio, tempfile
 from datetime import datetime
 from functools import wraps
-
+from pathlib import Path
 from bson.objectid import ObjectId
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
@@ -11,7 +11,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone
 import requests
 from pymongo import MongoClient, ReturnDocument
-from uploader import upload_video_to_telegram
+from uploader import upload_video_to_telegram,upload_file_to_telegram
 from utils import *
 import cloudinary
 import cloudinary.uploader
@@ -29,27 +29,30 @@ from uploader import (
     telegram_range_stream,
 )
 load_dotenv()
-
+def utcnow():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 app = Flask(__name__, static_url_path='/static')
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-
-def utcnow():
-    return datetime.now(timezone.utc).replace(tzinfo=None)
 MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "2048"))
-# Flask's default signed-cookie session survives Render instance restarts.
-# Do not use the service's ephemeral filesystem as the source of session state.
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=2)
-# Request бүрээр cookie expiration сунгахгүй
-app.config['SESSION_REFRESH_EACH_REQUEST'] = False
 
-app.config['SECRET_KEY'] = os.getenv(
-    "SECRET_KEY",
-    "_LIFE_OF_Happieness",
+SESSION_DIR = os.path.join(BASE_DIR, 'flask_session')
+
+# create it if missing
+os.makedirs(SESSION_DIR, exist_ok=True)
+app.config['SESSION_TYPE'] = 'filesystem'  # Store session data on the server
+app.config['SESSION_PERMANENT'] = True  # Keep session even after closing browser
+app.config['SESSION_FILE_DIR'] = SESSION_DIR # Folder to store session data
+app.config['SESSION_FILE_THRESHOLD'] = 800   # 500 is default
+app.config['SESSION_USE_SIGNER'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=2)
+app.config['MAX_CONTENT_LENGTH'] = MAX_UPLOAD_MB * 1024 * 1024  # 10 MB limit
+app.config['SECRET_KEY'] = '_LIFE_OF_Happieness'
+app.config.update(
+    SESSION_COOKIE_SECURE=False,  # !!! PRODUCTION ONLY TRUE
+    SESSION_COOKIE_HTTPONLY=True, 
+    SESSION_COOKIE_SAMESITE='Lax'
 )
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = "Lax"
-app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
 
 app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://localhost:27017/render_server")
 PROFILE_IMAGE_MAX_MB = 5
@@ -62,10 +65,39 @@ mongo_db = mongo_client[MONGO_DB_NAME]
 
 videos_collection = mongo_db["videos"]
 anime_collection = mongo_db["anime"]
+files_collection = mongo_db["files"]
 users_collection = mongo_db.users
 genres_collection = mongo_db.genres
 home_slides_collection = mongo_db.home_slides
 
+
+ALLOWED_FILE_EXTENSIONS = {
+    ".pdf",
+    ".rar",
+    ".zip",
+}
+def allowed_upload_file(
+    filename
+):
+    extension = (
+        Path(filename)
+        .suffix
+        .lower()
+    )
+
+    return (
+        extension
+        in ALLOWED_FILE_EXTENSIONS
+    )
+
+
+def allowed_file(filename):
+
+    ext = os.path.splitext(
+        filename
+    )[1].lower()
+
+    return ext in ALLOWED_FILE_EXTENSIONS
 
 home_slides_collection.create_index(
     [
@@ -1764,30 +1796,7 @@ def upload_video():
             except OSError:
                 pass
 
-@app.get("/debug/config")
-@admin_required
-def debug_config():
-    return jsonify({
-        "DJANGO_API_URL_set": bool(
-            os.getenv("DJANGO_API_URL")
-        ),
-        "DJANGO_API_URL": os.getenv(
-            "DJANGO_API_URL",
-            ""
-        ),
-        "DJANGO_API_KEY_set": bool(
-            os.getenv("DJANGO_API_KEY")
-        ),
-        "TELEGRAM_API_ID_set": bool(
-            os.getenv("TELEGRAM_API_ID")
-        ),
-        "TELEGRAM_CHANNEL_ID_set": bool(
-            os.getenv("TELEGRAM_CHANNEL_ID")
-        ),
-        "TELEGRAM_SESSION_set": bool(
-            os.getenv("TELEGRAM_SESSION")
-        ),
-    })
+
 @app.get("/health")
 def health():
     try:
@@ -2637,7 +2646,909 @@ def create_genre():
             "message": "Энэ genre аль хэдийн байна."
         }), 409
 
+def get_video_query(video_id):
+    """
+    _id нь ObjectId, int, string аль нь байсан
+    боломжийн хэмжээнд олно.
+    """
+    queries = [
+        {"_id": video_id},
+    ]
+
+    if ObjectId.is_valid(video_id):
+        queries.append({
+            "_id": ObjectId(video_id),
+        })
+
+    try:
+        numeric_id = int(video_id)
+
+        queries.append({
+            "_id": numeric_id,
+        })
+
+        queries.append({
+            "id": numeric_id,
+        })
+
+    except (ValueError, TypeError):
+        pass
+
+    return {
+        "$or": queries,
+    }
+
+
+# =========================================================
+# VIDEO MANAGEMENT PAGE
+# =========================================================
+
+@app.route("/admin/videos")
+def admin_videos_page():
+
+    # Хэрэв admin session шалгадаг бол эндээ оруулна
+    # if "user_name" not in session:
+    #     return redirect("/login")
+
+    return render_template(
+        "admin_videos.html"
+    )
+
+
+# =========================================================
+# GET VIDEOS
+# =========================================================
+
+@app.route(
+    "/api/admin/videos",
+    methods=["GET"],
+)
+def admin_get_videos():
+
+    videos = list(
+        videos_collection.find(
+            {}
+        ).sort(
+            "episode_number",
+            1,
+        )
+    )
+
+    result = []
+
+    for video in videos:
+
+        result.append({
+            "id": str(
+                video.get("_id")
+            ),
+            "anime_id": str(
+                video.get(
+                    "anime_id",
+                    ""
+                )
+            ),
+            "title": video.get(
+                "title",
+                ""
+            ),
+            "episode_number": video.get(
+                "episode_number",
+                ""
+            ),
+            "file_name": video.get(
+                "file_name",
+                ""
+            ),
+            "file_size": video.get(
+                "file_size",
+                0
+            ),
+            "telegram_channel_id": video.get(
+                "telegram_channel_id",
+                ""
+            ),
+            "telegram_message_id": video.get(
+                "telegram_message_id",
+                ""
+            ),
+            "is_uploaded": video.get(
+                "is_uploaded",
+                False
+            ),
+        })
+
+    return jsonify({
+        "success": True,
+        "videos": result,
+    })
+
+
+# =========================================================
+# UPDATE VIDEO
+# =========================================================
+
+@app.route(
+    "/api/admin/videos/<video_id>",
+    methods=["PUT"],
+)
+def admin_update_video(video_id):
+
+    data = request.get_json(
+        silent=True
+    ) or {}
+
+    title = str(
+        data.get(
+            "title",
+            ""
+        )
+    ).strip()
+
+    episode_number = data.get(
+        "episode_number"
+    )
+
+    if not title:
+
+        return jsonify({
+            "success": False,
+            "message": "Видео нэр хоосон байна.",
+        }), 400
+
+    try:
+        episode_number = int(
+            episode_number
+        )
+
+    except (
+        ValueError,
+        TypeError,
+    ):
+
+        return jsonify({
+            "success": False,
+            "message": (
+                "Episode number "
+                "тоо байх ёстой."
+            ),
+        }), 400
+
+    result = videos_collection.update_one(
+        get_video_query(
+            video_id
+        ),
+        {
+            "$set": {
+                "title": title,
+                "episode_number": episode_number,
+                "updated_at": utcnow(),
+            }
+        },
+    )
+
+    if result.matched_count == 0:
+
+        return jsonify({
+            "success": False,
+            "message": (
+                "Видео олдсонгүй."
+            ),
+        }), 404
+
+    return jsonify({
+        "success": True,
+        "message": (
+            "Видео амжилттай "
+            "засагдлаа."
+        ),
+    })
+
+
+# =========================================================
+# DELETE VIDEO
+# =========================================================
+
+@app.route(
+    "/api/admin/videos/<video_id>",
+    methods=["DELETE"],
+)
+def admin_delete_video(video_id):
+
+    result = videos_collection.delete_one(
+        get_video_query(
+            video_id
+        )
+    )
+
+    if result.deleted_count == 0:
+
+        return jsonify({
+            "success": False,
+            "message": "Видео олдсонгүй.",
+        }), 404
+
+    return jsonify({
+        "success": True,
+        "message": (
+            "Видео амжилттай "
+            "устгагдлаа."
+        ),
+    })
+
+
+# =========================================================
+# DELETE ALL VIDEOS
+# =========================================================
+
+@app.route(
+    "/api/admin/videos",
+    methods=["DELETE"],
+)
+def admin_delete_all_videos():
+
+    result = videos_collection.delete_many(
+        {}
+    )
+
+    return jsonify({
+        "success": True,
+        "deleted_count": (
+            result.deleted_count
+        ),
+        "message": (
+            f"{result.deleted_count} "
+            "видео устгагдлаа."
+        ),
+    })
+
+@app.route(
+    "/api/admin/files/upload",
+    methods=["POST"],
+)
+def admin_upload_file():
+
+    uploaded_file = (
+        request.files.get(
+            "file"
+        )
+    )
+
+    name = str(
+        request.form.get(
+            "name",
+            ""
+        )
+    ).strip()
+
+    description = str(
+        request.form.get(
+            "description",
+            ""
+        )
+    ).strip()
+
+
+    # ==========================================
+    # VALIDATE
+    # ==========================================
+
+    if not uploaded_file:
+
+        return jsonify({
+            "success": False,
+            "message": (
+                "Файл сонгоогүй байна."
+            ),
+        }), 400
+
+
+    if not uploaded_file.filename:
+
+        return jsonify({
+            "success": False,
+            "message": (
+                "Файлын нэр байхгүй байна."
+            ),
+        }), 400
+
+
+    if not allowed_upload_file(
+        uploaded_file.filename
+    ):
+
+        return jsonify({
+            "success": False,
+            "message": (
+                "PDF, ZIP, RAR файл "
+                "upload хийх боломжтой."
+            ),
+        }), 400
+
+
+    original_file_name = (
+        uploaded_file.filename
+    )
+
+    suffix = (
+        Path(
+            original_file_name
+        )
+        .suffix
+        .lower()
+    )
+
+
+    if not name:
+
+        name = (
+            Path(
+                original_file_name
+            ).stem
+        )
+
+
+    temp_path = None
+
+
+    try:
+
+        # ======================================
+        # TEMP SAVE
+        # ======================================
+
+        with tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=suffix,
+        ) as temp_file:
+
+            temp_path = (
+                temp_file.name
+            )
+
+
+        uploaded_file.save(
+            temp_path
+        )
+
+
+        # ======================================
+        # FILE META
+        # ======================================
+
+        file_size = (
+            os.path.getsize(
+                temp_path
+            )
+        )
+
+        mime_type = (
+            mimetypes.guess_type(
+                original_file_name
+            )[0]
+            or
+            "application/octet-stream"
+        )
+
+
+        # ======================================
+        # TELEGRAM
+        # ======================================
+
+        telegram_result = (
+            asyncio.run(
+                upload_file_to_telegram(
+                    temp_path,
+                    caption=name,
+                )
+            )
+        )
+
+
+        if not telegram_result.get(
+            "success"
+        ):
+
+            raise RuntimeError(
+                "Telegram upload failed"
+            )
+
+
+        # ======================================
+        # MONGODB
+        # ======================================
+
+        document = {
+
+            "name": name,
+
+            "description":
+                description,
+
+            "file_name":
+                telegram_result.get(
+                    "file_name"
+                )
+                or
+                original_file_name,
+
+            "file_type":
+                suffix.lstrip(
+                    "."
+                ),
+
+            "mime_type":
+                mime_type,
+
+            "file_size":
+                telegram_result.get(
+                    "file_size",
+                    file_size,
+                ),
+
+            "telegram_channel_id":
+                telegram_result[
+                    "channel_id"
+                ],
+
+            "telegram_message_id":
+                telegram_result[
+                    "message_id"
+                ],
+
+            "is_uploaded":
+                True,
+
+            "created_at":
+                utcnow(),
+
+            "updated_at":
+                utcnow(),
+        }
+
+
+        result = (
+            files_collection
+            .insert_one(
+                document
+            )
+        )
+
+
+        return jsonify({
+            "success": True,
+
+            "message": (
+                "Файл амжилттай "
+                "upload хийгдлээ."
+            ),
+
+            "file": {
+                "id": str(
+                    result.inserted_id
+                ),
+
+                "name":
+                    document["name"],
+
+                "file_name":
+                    document[
+                        "file_name"
+                    ],
+
+                "file_type":
+                    document[
+                        "file_type"
+                    ],
+
+                "file_size":
+                    document[
+                        "file_size"
+                    ],
+
+                "channel_id":
+                    document[
+                        "telegram_channel_id"
+                    ],
+
+                "message_id":
+                    document[
+                        "telegram_message_id"
+                    ],
+            },
+        })
+
+
+    except Exception as e:
+
+        print(
+            "FILE UPLOAD ERROR:",
+            repr(e)
+        )
+
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 500
+
+
+    finally:
+
+        if (
+            temp_path
+            and
+            os.path.exists(
+                temp_path
+            )
+        ):
+
+            os.remove(
+                temp_path
+            )
+@app.route("/admin/files")
+def admin_files_page():
+
+    return render_template(
+        "admin_files.html"
+    )
+
+def upload_admin_file():
+
+    uploaded_file = request.files.get(
+        "file"
+    )
+
+    name = str(
+        request.form.get(
+            "name",
+            ""
+        )
+    ).strip()
+
+    description = str(
+        request.form.get(
+            "description",
+            ""
+        )
+    ).strip()
+
+
+    # =====================================================
+    # VALIDATE
+    # =====================================================
+
+    if not uploaded_file:
+
+        return jsonify({
+            "success": False,
+            "message": "Файл сонгоогүй байна.",
+        }), 400
+
+
+    if not uploaded_file.filename:
+
+        return jsonify({
+            "success": False,
+            "message": "Файлын нэр байхгүй байна.",
+        }), 400
+
+
+    if not allowed_file(
+        uploaded_file.filename
+    ):
+
+        return jsonify({
+            "success": False,
+            "message": (
+                "Зөвхөн PDF, RAR, ZIP "
+                "файл upload хийх боломжтой."
+            ),
+        }), 400
+
+
+    original_filename = (
+        uploaded_file.filename
+    )
+
+    ext = os.path.splitext(
+        original_filename
+    )[1].lower()
+
+
+    if not name:
+
+        name = os.path.splitext(
+            original_filename
+        )[0]
+
+
+    # =====================================================
+    # TEMP FILE
+    # =====================================================
+
+    temp_path = None
+
+    try:
+
+        with tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=ext,
+        ) as temp_file:
+
+            temp_path = temp_file.name
+
+            uploaded_file.save(
+                temp_path
+            )
+
+
+        file_size = os.path.getsize(
+            temp_path
+        )
+
+        mime_type = (
+            mimetypes.guess_type(
+                original_filename
+            )[0]
+            or
+            "application/octet-stream"
+        )
+
+
+        # =================================================
+        # TELEGRAM UPLOAD
+        # =================================================
+
+        telegram_result = run_async(
+            upload_file_to_telegram(
+                temp_path,
+                original_filename,
+            )
+        )
+
+
+        telegram_channel_id = (
+            telegram_result[
+                "channel_id"
+            ]
+        )
+
+        telegram_message_id = (
+            telegram_result[
+                "message_id"
+            ]
+        )
+
+
+        # =================================================
+        # SAVE MONGODB
+        # =================================================
+
+        document = {
+
+            "name": name,
+
+            "file_name":
+                original_filename,
+
+            "file_type":
+                ext.replace(
+                    ".",
+                    ""
+                ),
+
+            "mime_type":
+                mime_type,
+
+            "file_size":
+                file_size,
+
+            "telegram_channel_id":
+                telegram_channel_id,
+
+            "telegram_message_id":
+                telegram_message_id,
+
+            "description":
+                description,
+
+            "is_uploaded":
+                True,
+
+            "created_at":
+                utcnow(),
+
+            "updated_at":
+                utcnow(),
+        }
+
+
+        result = (
+            files_collection
+            .insert_one(
+                document
+            )
+        )
+
+
+        return jsonify({
+            "success": True,
+
+            "message":
+                "Файл амжилттай upload хийгдлээ.",
+
+            "file": {
+                "id": str(
+                    result.inserted_id
+                ),
+                "name": name,
+                "file_name":
+                    original_filename,
+                "file_type":
+                    document[
+                        "file_type"
+                    ],
+                "file_size":
+                    file_size,
+                "telegram_channel_id":
+                    telegram_channel_id,
+                "telegram_message_id":
+                    telegram_message_id,
+            },
+        })
+
+
+    except Exception as e:
+
+        print(
+            "FILE UPLOAD ERROR:",
+            str(e)
+        )
+
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 500
+
+
+    finally:
+
+        if (
+            temp_path
+            and
+            os.path.exists(
+                temp_path
+            )
+        ):
+
+            os.remove(
+                temp_path
+            )
+
+@app.route(
+    "/api/admin/files",
+    methods=["GET"],
+)
+def admin_get_files():
+
+    files = list(
+        files_collection.find(
+            {}
+        ).sort(
+            "created_at",
+            -1,
+        )
+    )
+
+    result = []
+
+    for file in files:
+
+        channel_id = file.get(
+            "telegram_channel_id"
+        )
+
+        message_id = file.get(
+            "telegram_message_id"
+        )
+
+        telegram_link = None
+
+        # Private channel/supergroup link:
+        # -1001234567890 -> 1234567890
+        if (
+            channel_id
+            and
+            message_id
+        ):
+
+            channel_str = str(
+                channel_id
+            )
+
+            if channel_str.startswith(
+                "-100"
+            ):
+
+                internal_id = (
+                    channel_str[4:]
+                )
+
+                telegram_link = (
+                    f"https://t.me/c/"
+                    f"{internal_id}/"
+                    f"{message_id}"
+                )
+
+
+        created_at = file.get(
+            "created_at"
+        )
+
+
+        result.append({
+
+            "id": str(
+                file.get("_id")
+            ),
+
+            "name": file.get(
+                "name",
+                ""
+            ),
+
+            "description": file.get(
+                "description",
+                ""
+            ),
+
+            "file_name": file.get(
+                "file_name",
+                ""
+            ),
+
+            "file_type": file.get(
+                "file_type",
+                ""
+            ),
+
+            "mime_type": file.get(
+                "mime_type",
+                ""
+            ),
+
+            "file_size": file.get(
+                "file_size",
+                0
+            ),
+
+            "telegram_channel_id":
+                channel_id,
+
+            "telegram_message_id":
+                message_id,
+
+            "telegram_link":
+                telegram_link,
+
+            "is_uploaded": file.get(
+                "is_uploaded",
+                False
+            ),
+
+            "created_at": (
+                created_at.isoformat()
+                if created_at
+                else None
+            ),
+        })
+
+
+    return jsonify({
+        "success": True,
+        "files": result,
+    })
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=False)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=True)
