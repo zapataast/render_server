@@ -34,7 +34,7 @@ def utcnow():
 app = Flask(__name__, static_url_path='/static')
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "2048"))
+MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "3048"))
 
 SESSION_DIR = os.path.join(BASE_DIR, 'flask_session')
 
@@ -3551,4 +3551,4 @@ def admin_get_files():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=True)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=False)
