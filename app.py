@@ -2247,7 +2247,6 @@ def anime_create_page():
             1
         )
     )
-    print("🐍 File: render_server/app.py | Line: 1722 | anime_create_page ~ genres",genres)
 
     for genre in genres:
         genre["id"] = str(
@@ -3551,4 +3550,4 @@ def admin_get_files():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=False)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=True)
