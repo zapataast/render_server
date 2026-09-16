@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="mn">
 
@@ -36,6 +37,45 @@
             padding: 32px 20px;
         }
 
+        .browser-warning {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 20px;
+            padding: 14px 18px;
+            background: #fff7d6;
+            border: 1px solid #f2d675;
+            border-radius: 14px;
+            color: #6b5200;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+        }
+
+        .browser-warning-icon {
+            flex: 0 0 36px;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: #f5c542;
+            color: #5b4500;
+            font-size: 20px;
+            font-weight: 800;
+        }
+
+        .browser-warning-text {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .browser-warning-text b {
+            color: #5a4400;
+        }
+
         .back {
             display: inline-block;
             margin-bottom: 20px;
@@ -48,10 +88,7 @@
             background: white;
             border-radius: 20px;
             padding: 24px;
-
-            box-shadow:
-                0 10px 35px
-                rgba(0, 0, 0, 0.07);
+            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.07);
         }
 
         .player-box {
@@ -88,14 +125,42 @@
             width: 70px;
             height: 70px;
         }
+
+        @media (max-width: 700px) {
+            .page {
+                padding: 20px 14px;
+            }
+
+            .browser-warning {
+                align-items: flex-start;
+                padding: 12px 14px;
+            }
+
+            .player-card {
+                padding: 14px;
+            }
+        }
     </style>
 
 </head>
 
-
 <body>
 
 <div class="page">
+
+    <div class="browser-warning">
+        <div class="browser-warning-icon">!</div>
+
+        <div class="browser-warning-text">
+            <b>Видео тоглуулагч ажиллахгүй байна уу?</b>
+
+            <span>
+                Хэрэв видео тоглохгүй, гацах эсвэл seek хийхгүй байвал
+                <strong>Google Chrome</strong>
+                хөтчөөр нэвтэрч үзнэ үү.
+            </span>
+        </div>
+    </div>
 
     {% if anime %}
 
@@ -119,7 +184,6 @@
     </a>
 
     {% endif %}
-
 
     <div class="player-card">
 
@@ -147,11 +211,9 @@
 
         </div>
 
-
         <h1>
             {{ video.title or "Video" }}
         </h1>
-
 
         <div class="meta">
 
@@ -160,7 +222,6 @@
                 {{ video.episode_number }}-р анги
 
             {% endif %}
-
 
             {% if video.duration %}
 
@@ -174,14 +235,11 @@
 
 </div>
 
-
 <script
     src="https://cdn.plyr.io/3.7.8/plyr.js"
 ></script>
 
-
 <script>
-
     const player = new Plyr(
         '#player',
         {
@@ -204,8 +262,8 @@
             ]
         }
     );
-
 </script>
 
 </body>
 </html>
+

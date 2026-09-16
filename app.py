@@ -1986,14 +1986,35 @@ def stream_video(video_id):
     file_name = video.get("file_name", "")
     mime_type = mimetypes.guess_type(file_name)[0] or "video/mp4"
 
+    # =====================================================
+    # CACHE VALIDATOR
+    # =====================================================
+    etag = f'"{message_id}-{file_size}"'
+
+    range_header = request.headers.get("Range")
+
+    if not range_header:
+        if request.headers.get("If-None-Match") == etag:
+            return Response(
+                status=304,
+                headers={
+                    "ETag": etag,
+                    "Cache-Control": "private, max-age=86400",
+                },
+            )
+
+    # =====================================================
+    # RANGE
+    # =====================================================
     start = 0
     end = file_size - 1
     status = 200
 
-    range_header = request.headers.get("Range")
-
     if range_header:
-        match = re.match(r"bytes=(\d*)-(\d*)", range_header)
+        match = re.match(
+            r"bytes=(\d*)-(\d*)",
+            range_header,
+        )
 
         if not match:
             return Response(
@@ -2003,7 +2024,8 @@ def stream_video(video_id):
                 },
             )
 
-        start_text, end_text = match.groups()
+        start_text = match.group(1)
+        end_text = match.group(2)
 
         if start_text:
             start = int(start_text)
@@ -2026,10 +2048,14 @@ def stream_video(video_id):
 
     content_length = end - start + 1
 
+    # =====================================================
+    # RESPONSE HEADERS
+    # =====================================================
     headers = {
         "Accept-Ranges": "bytes",
         "Content-Length": str(content_length),
-        "Cache-Control": "private, max-age=3600",
+        "Cache-Control": "private, max-age=86400",
+        "ETag": etag,
         "X-Accel-Buffering": "no",
     }
 
@@ -2052,6 +2078,8 @@ def stream_video(video_id):
         content_type=mime_type,
         direct_passthrough=True,
     )
+
+
 TYPE_CHOICES = [
     ("tv", "TV"),
     ("movie", "Movie"),
@@ -3505,4 +3533,4 @@ def admin_get_files():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=True)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=False)
