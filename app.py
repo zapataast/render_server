@@ -1965,11 +1965,6 @@ def anime_detail(anime_id):
 @app.get("/stream/<video_id>")
 @login_required
 def stream_video(video_id):
-
-    # =====================================================
-    # 1. MONGODB VIDEO FIND
-    # =====================================================
-
     if not ObjectId.is_valid(video_id):
         abort(404)
 
@@ -1981,60 +1976,34 @@ def stream_video(video_id):
     if not video:
         abort(404)
 
-    channel_id = int(
-        video["telegram_channel_id"]
-    )
-
-    message_id = int(
-        video["telegram_message_id"]
-    )
-
-    file_size = int(
-        video.get("file_size") or 0
-    )
+    channel_id = int(video["telegram_channel_id"])
+    message_id = int(video["telegram_message_id"])
+    file_size = int(video.get("file_size") or 0)
 
     if file_size <= 0:
         abort(404)
 
-    file_name = video.get(
-        "file_name",
-        ""
-    )
-
-    mime_type = (
-        mimetypes.guess_type(
-            file_name
-        )[0]
-        or "video/mp4"
-    )
+    file_name = video.get("file_name", "")
+    mime_type = mimetypes.guess_type(file_name)[0] or "video/mp4"
 
     start = 0
     end = file_size - 1
-
-    range_header = request.headers.get(
-        "Range"
-    )
-
     status = 200
 
-    if range_header:
+    range_header = request.headers.get("Range")
 
-        match = re.match(
-            r"bytes=(\d*)-(\d*)",
-            range_header,
-        )
+    if range_header:
+        match = re.match(r"bytes=(\d*)-(\d*)", range_header)
 
         if not match:
             return Response(
                 status=416,
                 headers={
-                    "Content-Range":
-                    f"bytes */{file_size}"
+                    "Content-Range": f"bytes */{file_size}",
                 },
             )
 
-        start_text = match.group(1)
-        end_text = match.group(2)
+        start_text, end_text = match.groups()
 
         if start_text:
             start = int(start_text)
@@ -2045,40 +2014,28 @@ def stream_video(video_id):
                 file_size - 1,
             )
 
-        if start >= file_size:
+        if start >= file_size or start > end:
             return Response(
                 status=416,
                 headers={
-                    "Content-Range":
-                    f"bytes */{file_size}"
+                    "Content-Range": f"bytes */{file_size}",
                 },
             )
 
         status = 206
 
-    content_length = (
-        end - start + 1
-    )
+    content_length = end - start + 1
 
     headers = {
         "Accept-Ranges": "bytes",
-
-        "Content-Length": str(
-            content_length
-        ),
-
-        "Cache-Control": (
-            "private, no-cache"
-        ),
+        "Content-Length": str(content_length),
+        "Cache-Control": "private, max-age=3600",
+        "X-Accel-Buffering": "no",
     }
 
     if status == 206:
-        headers[
-            "Content-Range"
-        ] = (
-            f"bytes "
-            f"{start}-{end}/"
-            f"{file_size}"
+        headers["Content-Range"] = (
+            f"bytes {start}-{end}/{file_size}"
         )
 
     return Response(
@@ -2095,8 +2052,6 @@ def stream_video(video_id):
         content_type=mime_type,
         direct_passthrough=True,
     )
-
-
 TYPE_CHOICES = [
     ("tv", "TV"),
     ("movie", "Movie"),

@@ -4,7 +4,15 @@ from pathlib import Path
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 import asyncio
+import threading
+import time
 
+TELEGRAM_CACHE_TTL = 10 * 60
+TELEGRAM_CHUNK_SIZE = 512 * 1024
+
+_telegram_channel_cache = {}
+_telegram_message_cache = {}
+_telegram_cache_lock = threading.Lock()
 def _required_env(name):
     value = os.getenv(name)
     if not value:
@@ -47,7 +55,93 @@ def build_telegram_client():
         api_hash,
     )
 CHANNEL_CACHE = {}
+def _cache_get(cache, key):
+    now = time.time()
 
+    with _telegram_cache_lock:
+        item = cache.get(key)
+
+        if not item:
+            return None
+
+        expires_at, value = item
+
+        if expires_at <= now:
+            cache.pop(key, None)
+            return None
+
+        return value
+
+
+def _cache_set(cache, key, value):
+    with _telegram_cache_lock:
+        cache[key] = (
+            time.time() + TELEGRAM_CACHE_TTL,
+            value,
+        )
+async def get_cached_telegram_channel(client, channel_id):
+    cache_key = int(channel_id)
+
+    channel = _cache_get(
+        _telegram_channel_cache,
+        cache_key,
+    )
+
+    if channel is not None:
+        return channel
+
+    channel = await resolve_channel(
+        client,
+        channel_id,
+    )
+
+    if channel is not None:
+        _cache_set(
+            _telegram_channel_cache,
+            cache_key,
+            channel,
+        )
+
+    return channel
+
+async def get_cached_telegram_message(
+    client,
+    channel,
+    channel_id,
+    message_id,
+):
+    cache_key = (
+        int(channel_id),
+        int(message_id),
+    )
+
+    message = _cache_get(
+        _telegram_message_cache,
+        cache_key,
+    )
+
+    if message is not None:
+        return message
+
+    message = await get_telegram_message(
+        client,
+        channel,
+        channel_id,
+        message_id,
+    )
+
+    if message is not None:
+        _cache_set(
+            _telegram_message_cache,
+            cache_key,
+            message,
+        )
+
+    return message
+
+def _cache_delete(cache, key):
+    with _telegram_cache_lock:
+        cache.pop(key, None)
 async def resolve_channel(client, channel_id):
     if channel_id in CHANNEL_CACHE:
         return CHANNEL_CACHE[channel_id]
@@ -94,16 +188,12 @@ async def get_telegram_message(
 
     return message
 
-def telegram_range_stream(
-    channel_id,
-    message_id,
-    start,
-    end,
-):
+def telegram_range_stream(channel_id, message_id, start, end):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
     client = build_telegram_client()
+    iterator = None
 
     try:
         # =====================================================
@@ -123,24 +213,27 @@ def telegram_range_stream(
             )
 
         # =====================================================
-        # RESOLVE CHANNEL
+        # CHANNEL
+        # CACHE HIT үед Telegram request явахгүй.
         # =====================================================
         channel = loop.run_until_complete(
-            resolve_channel(
+            get_cached_telegram_channel(
                 client,
                 channel_id,
             )
         )
+
         if channel is None:
             raise RuntimeError(
                 f"Telegram channel олдсонгүй: {channel_id}"
             )
 
         # =====================================================
-        # GET MESSAGE
+        # MESSAGE
+        # CACHE HIT үед get_messages дахиж дуудагдахгүй.
         # =====================================================
         message = loop.run_until_complete(
-            get_telegram_message(
+            get_cached_telegram_message(
                 client,
                 channel,
                 channel_id,
@@ -159,27 +252,38 @@ def telegram_range_stream(
             )
 
         # =====================================================
-        # BYTE RANGE
+        # RANGE
         # =====================================================
-        remaining = (
-            int(end)
-            - int(start)
-            + 1
-        )
+        start = int(start)
+        end = int(end)
 
+        remaining = end - start + 1
+
+        if remaining <= 0:
+            return
+
+        # =====================================================
+        # TELEGRAM OFFSET ALIGN
+        # =====================================================
+        aligned_start = (
+            start // TELEGRAM_CHUNK_SIZE
+        ) * TELEGRAM_CHUNK_SIZE
+
+        skip_bytes = start - aligned_start
+
+        # =====================================================
+        # DOWNLOAD
+        # =====================================================
         iterator = client.iter_download(
             message.media,
-
-            offset=int(start),
-
-            request_size=512 * 1024,
-            chunk_size=512 * 1024,
+            offset=aligned_start,
+            request_size=TELEGRAM_CHUNK_SIZE,
+            chunk_size=TELEGRAM_CHUNK_SIZE,
         )
 
         async_iterator = iterator.__aiter__()
 
         while remaining > 0:
-
             try:
                 chunk = loop.run_until_complete(
                     async_iterator.__anext__()
@@ -191,41 +295,83 @@ def telegram_range_stream(
             if not chunk:
                 break
 
-            # ===============================================
-            # Werkzeug-д заавал bytes өгнө
-            # ===============================================
             chunk = bytes(chunk)
 
+            # =================================================
+            # ALIGN-аас үүссэн эхний илүү хэсгийг хаяна.
+            # =================================================
+            if skip_bytes > 0:
+                if skip_bytes >= len(chunk):
+                    skip_bytes -= len(chunk)
+                    continue
+
+                chunk = chunk[skip_bytes:]
+                skip_bytes = 0
+
+            # =================================================
+            # Browser-ийн хүссэн range-ээс хэтрүүлэхгүй.
+            # =================================================
             if len(chunk) > remaining:
                 chunk = chunk[:remaining]
+
+            if not chunk:
+                break
 
             remaining -= len(chunk)
 
             yield chunk
 
     except GeneratorExit:
-        # Browser seek хийх, video request cancel хийх үед
-        # хэвийн тохиолдол.
         return
+
+    except Exception:
+        # Media reference асуудал гарсан байж болох учраас
+        # тухайн message cache-ийг invalidate хийнэ.
+        _cache_delete(
+            _telegram_message_cache,
+            (
+                int(channel_id),
+                int(message_id),
+            ),
+        )
+
+        raise
 
     finally:
         # =====================================================
-        # IMPORTANT:
-        #
-        # client.disconnect()-г run_until_complete хийхгүй.
-        # Telethon disconnect() өөрөө cleanup хийдэг.
+        # ITERATOR CLOSE
+        # =====================================================
+        if iterator is not None:
+            try:
+                result = iterator.close()
+
+                if asyncio.iscoroutine(result):
+                    loop.run_until_complete(result)
+
+            except Exception:
+                pass
+
+        # =====================================================
+        # CLIENT DISCONNECT
         # =====================================================
         try:
             if client.is_connected():
-                client.disconnect()
+                result = client.disconnect()
+
+                if asyncio.iscoroutine(result):
+                    loop.run_until_complete(result)
 
         except Exception:
             pass
 
+        # =====================================================
+        # LOOP CLOSE
+        # =====================================================
         try:
             loop.close()
         except Exception:
             pass
+
 
 async def upload_file_to_telegram(
     file_path,
