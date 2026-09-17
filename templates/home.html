@@ -1079,7 +1079,27 @@ document.addEventListener(
 
     {% if anime_list %}
 
+    <!-- SEARCH + TYPE FILTER -->
+    <div class="mb-8 flex flex-col md:flex-row gap-3">
+        <div class="relative flex-1">
+            <input id="anime-search" type="text" placeholder="Anime нэрээр хайх..." autocomplete="off" class="w-full h-12 rounded-xl bg-slate-900 border border-slate-800 px-4 pl-11 text-sm text-white placeholder:text-slate-500 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition">
+            <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35m1.35-5.65a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"></path>
+            </svg>
+        </div>
+
+        <select id="anime-type-filter" class="h-12 w-full md:w-56 rounded-xl bg-slate-900 border border-slate-800 px-4 text-sm text-white outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition cursor-pointer">
+            <option value="">Бүх төрөл</option>
+            <option value="movie">Movie</option>
+            <option value="tv">TV</option>
+            <option value="ona">ONA</option>
+            <option value="special">Special</option>
+            <option value="music">Music</option>
+        </select>
+    </div>
+
     <div
+        id="anime-grid"
         class="
             grid
             grid-cols-2
@@ -1095,8 +1115,11 @@ document.addEventListener(
 
         <a
             href="/anime/{{ anime.id }}"
+            data-anime-name="{{ anime.name|lower }}"
+            data-anime-type="{{ anime.anime_type|lower }}"
 
             class="
+                anime-card
                 group
                 block
                 rounded-2xl
@@ -1233,6 +1256,10 @@ document.addEventListener(
 
     </div>
 
+    <div id="anime-filter-empty" class="hidden py-20 text-center text-slate-500">
+        Хайлтад тохирох anime олдсонгүй.
+    </div>
+
 
     {% else %}
 
@@ -1249,6 +1276,47 @@ document.addEventListener(
     {% endif %}
 
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const searchInput = document.getElementById('anime-search');
+    const typeFilter = document.getElementById('anime-type-filter');
+    const animeCards = Array.from(document.querySelectorAll('.anime-card'));
+    const emptyState = document.getElementById('anime-filter-empty');
+
+    if (!searchInput || !typeFilter || !animeCards.length) {
+        return;
+    }
+
+    function filterAnime() {
+        const keyword = searchInput.value.trim().toLowerCase();
+        const selectedType = typeFilter.value.trim().toLowerCase();
+        let visibleCount = 0;
+
+        animeCards.forEach(function (card) {
+            const animeName = (card.dataset.animeName || '').toLowerCase();
+            const animeType = (card.dataset.animeType || '').toLowerCase();
+
+            const matchesSearch = !keyword || animeName.includes(keyword);
+            const matchesType = !selectedType || animeType === selectedType;
+            const isVisible = matchesSearch && matchesType;
+
+            card.classList.toggle('hidden', !isVisible);
+
+            if (isVisible) {
+                visibleCount += 1;
+            }
+        });
+
+        if (emptyState) {
+            emptyState.classList.toggle('hidden', visibleCount > 0);
+        }
+    }
+
+    searchInput.addEventListener('input', filterAnime);
+    typeFilter.addEventListener('change', filterAnime);
+});
+</script>
 
 </body>
 </html>
