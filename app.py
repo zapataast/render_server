@@ -3531,6 +3531,75 @@ def admin_get_files():
         "files": result,
     })
 
+@app.get("/admin/users")
+@login_required
+def admin_users_page():
+    if not is_admin(current_user()):
+        abort(403)
 
+    users = list(
+        users_collection.find(
+            {},
+            {"password_hash": 0}
+        ).sort("created_at", -1)
+    )
+
+    for user in users:
+        user["_id"] = str(user["_id"])
+
+    return render_template(
+        "admin_users.html",
+        users=users,
+        current_user_id=str(session.get("user_id") or ""),
+    )
+
+
+@app.delete("/api/admin/users/<user_id>")
+@login_required
+def admin_user_delete(user_id):
+    if not is_admin(current_user()):
+        return jsonify({
+            "ok": False,
+            "message": "Admin эрх шаардлагатай."
+        }), 403
+
+    if not ObjectId.is_valid(user_id):
+        return jsonify({
+            "ok": False,
+            "message": "User ID буруу байна."
+        }), 400
+
+    current_user_id = str(session.get("user_id") or "")
+
+    if current_user_id == user_id:
+        return jsonify({
+            "ok": False,
+            "message": "Өөрийн admin хэрэглэгчийг устгах боломжгүй."
+        }), 400
+
+    user = users_collection.find_one({
+        "_id": ObjectId(user_id)
+    })
+
+    if not user:
+        return jsonify({
+            "ok": False,
+            "message": "Хэрэглэгч олдсонгүй."
+        }), 404
+
+    result = users_collection.delete_one({
+        "_id": ObjectId(user_id)
+    })
+
+    if result.deleted_count != 1:
+        return jsonify({
+            "ok": False,
+            "message": "Хэрэглэгч устгаж чадсангүй."
+        }), 500
+
+    return jsonify({
+        "ok": True,
+        "message": "Хэрэглэгч амжилттай устлаа."
+    })
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=True)
