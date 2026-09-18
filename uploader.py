@@ -282,7 +282,9 @@ def telegram_range_stream(channel_id, message_id, start, end):
         )
 
         async_iterator = iterator.__aiter__()
-
+        started_at = time.time()
+        sent_bytes = 0
+        last_log_at = started_at
         while remaining > 0:
             try:
                 chunk = loop.run_until_complete(
@@ -318,7 +320,21 @@ def telegram_range_stream(channel_id, message_id, start, end):
                 break
 
             remaining -= len(chunk)
+            sent_bytes += len(chunk)
 
+            now = time.time()
+            if now - last_log_at >= 2:
+                elapsed = now - started_at
+                speed = sent_bytes / elapsed
+
+                print(
+                    f"[TELEGRAM STREAM] "
+                    f"sent={sent_bytes / 1024 / 1024:.2f} MB | "
+                    f"speed={speed / 1024:.2f} KB/s | "
+                    f"elapsed={elapsed:.1f}s"
+                )
+
+                last_log_at = now
             yield chunk
 
     except GeneratorExit:

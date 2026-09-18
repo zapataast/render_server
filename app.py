@@ -2047,7 +2047,24 @@ def stream_video(video_id):
         status = 206
 
     content_length = end - start + 1
+    duration = float(video.get("duration") or 0)
 
+    if duration > 0:
+        bytes_per_second = file_size / duration
+        range_seconds = content_length / bytes_per_second
+
+        print(
+            f"[STREAM] Range={range_header} "
+            f"bytes={content_length:,} "
+            f"~{range_seconds:.2f}s "
+            f"start={start:,} end={end:,}"
+        )
+    else:
+        print(
+            f"[STREAM] Range={range_header} "
+            f"bytes={content_length:,} "
+            f"start={start:,} end={end:,}"
+        )
     # =====================================================
     # RESPONSE HEADERS
     # =====================================================

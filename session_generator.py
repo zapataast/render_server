@@ -19,10 +19,7 @@ API_HASH = os.getenv(
     "TELEGRAM_API_HASH"
 )
 
-SESSION_NAME = os.getenv(
-    "TELEGRAM_SESSION_NAME",
-    "telegram_session_new",
-)
+SESSION_NAME = 'for_render'
 
 
 async def main():
