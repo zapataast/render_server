@@ -125,7 +125,80 @@
             width: 70px;
             height: 70px;
         }
+        .episode-navigation {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: 18px;
+}
 
+.episode-nav-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+    color: #1f2937;
+    text-decoration: none;
+    transition: 0.2s ease;
+}
+
+.episode-nav-btn:hover {
+    border-color: #6366f1;
+    background: #f5f3ff;
+    transform: translateY(-1px);
+}
+
+.episode-nav-btn.next {
+    justify-content: flex-end;
+    text-align: right;
+}
+
+.episode-nav-btn span {
+    font-size: 24px;
+    color: #6366f1;
+}
+
+.episode-nav-btn small {
+    display: block;
+    color: #9ca3af;
+    font-size: 12px;
+    margin-bottom: 3px;
+}
+
+.episode-nav-btn strong {
+    display: block;
+    font-size: 15px;
+}
+
+.episode-nav-btn.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: #f9fafb;
+}
+
+.episode-nav-btn.disabled:hover {
+    border-color: #e5e7eb;
+    background: #f9fafb;
+    transform: none;
+}
+
+@media (max-width: 640px) {
+    .episode-navigation {
+        gap: 8px;
+    }
+
+    .episode-nav-btn {
+        padding: 11px 12px;
+    }
+
+    .episode-nav-btn strong {
+        font-size: 13px;
+    }
+}
         @media (max-width: 700px) {
             .page {
                 padding: 20px 14px;
@@ -230,7 +303,90 @@
             {% endif %}
 
         </div>
+<div class="episode-navigation">
 
+    {% if prev_video %}
+
+        <a
+            href="{{ url_for(
+                'watch_video',
+                video_id=prev_video._id
+            ) }}"
+            class="episode-nav-btn"
+        >
+            <span>←</span>
+
+            <div>
+                <small>
+                    Өмнөх анги
+                </small>
+
+                <strong>
+                    {{ prev_video.episode_number }}-р анги
+                </strong>
+            </div>
+        </a>
+
+    {% else %}
+
+        <div class="episode-nav-btn disabled">
+            <span>←</span>
+
+            <div>
+                <small>
+                    Өмнөх анги
+                </small>
+
+                <strong>
+                    Байхгүй
+                </strong>
+            </div>
+        </div>
+
+    {% endif %}
+
+
+    {% if next_video %}
+
+        <a
+            href="{{ url_for(
+                'watch_video',
+                video_id=next_video._id
+            ) }}"
+            class="episode-nav-btn next"
+        >
+            <div>
+                <small>
+                    Дараагийн анги
+                </small>
+
+                <strong>
+                    {{ next_video.episode_number }}-р анги
+                </strong>
+            </div>
+
+            <span>→</span>
+        </a>
+
+    {% else %}
+
+        <div class="episode-nav-btn next disabled">
+            <div>
+                <small>
+                    Дараагийн анги
+                </small>
+
+                <strong>
+                    Байхгүй
+                </strong>
+            </div>
+
+            <span>→</span>
+        </div>
+
+    {% endif %}
+
+</div>
     </div>
 
 </div>

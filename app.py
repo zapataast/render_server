@@ -1477,51 +1477,84 @@ def logout():
 
 @app.get("/watch/<video_id>")
 def watch_video(video_id):
-    if get_current_user():
+    if not get_current_user():
+        return render_template("login.html")
 
+    if not ObjectId.is_valid(video_id):
+        abort(404)
 
-    
-        if not ObjectId.is_valid(video_id):
-            abort(404)
+    video = videos_collection.find_one({
+        "_id": ObjectId(video_id),
+        "is_uploaded": True,
+    })
 
-        video = videos_collection.find_one({
-            "_id": ObjectId(video_id),
-            "is_uploaded": True,
+    if not video:
+        abort(404)
+
+    video["id"] = str(video["_id"])
+
+    anime = None
+    prev_video = None
+    next_video = None
+
+    anime_id = video.get("anime_id")
+    current_episode = video.get("episode_number")
+
+    print("anime_id:", anime_id)
+    print("current_episode:", current_episode)
+
+    if anime_id:
+
+        anime = anime_collection.find_one({
+            "_id": anime_id
         })
 
-        if not video:
-            abort(404)
+        if anime:
+            anime["id"] = str(anime["_id"])
 
-        video["id"] = str(
-            video["_id"]
-        )
+        # episode_number байгаа үед previous / next хайна
+        if current_episode is not None:
 
-        anime = None
-
-        anime_id = video.get(
-            "anime_id"
-        )
-
-        if anime_id:
-
-            anime = anime_collection.find_one({
-                "_id": anime_id
-            })
-
-            if anime:
-                anime["id"] = str(
-                    anime["_id"]
-                )
-
-        return render_template(
-            "watch.html",
-            video=video,
-            anime=anime,
-        )
-    else:
-        return render_template(
-                "login.html"
+            prev_video = videos_collection.find_one(
+                {
+                    "anime_id": anime_id,
+                    "is_uploaded": True,
+                    "episode_number": {
+                        "$lt": current_episode
+                    }
+                },
+                sort=[
+                    ("episode_number", -1)
+                ]
             )
+
+            next_video = videos_collection.find_one(
+                {
+                    "anime_id": anime_id,
+                    "is_uploaded": True,
+                    "episode_number": {
+                        "$gt": current_episode
+                    }
+                },
+                sort=[
+                    ("episode_number", 1)
+                ]
+            )
+
+            if prev_video:
+                prev_video["id"] = str(prev_video["_id"])
+
+            if next_video:
+                next_video["id"] = str(next_video["_id"])
+
+    return render_template(
+        "watch.html",
+        video=video,
+        anime=anime,
+        prev_video=prev_video,
+        next_video=next_video,
+    )
+    
 @app.get("/dashboard")
 @login_required
 def dashboard():
