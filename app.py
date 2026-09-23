@@ -45,7 +45,7 @@ app.config["SESSION_MONGODB_COLLECT"] = "flask_sessions"
 app.config["SESSION_PERMANENT"] = True
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=2)
 
-app.config["SECRET_KEY"] = os.environ["FLASK_SECRET_KEY"]
+app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY",'1234qwerasdfzxcvuiop')
 
 app.config.update(
     SESSION_COOKIE_SECURE=True,
