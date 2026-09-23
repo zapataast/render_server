@@ -28,38 +28,37 @@ from pymongo.errors import DuplicateKeyError
 from uploader import (
     telegram_range_stream,
 )
+from flask_session import Session
 load_dotenv()
 def utcnow():
     return datetime.now(timezone.utc).replace(tzinfo=None)
 app = Flask(__name__, static_url_path='/static')
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "3048"))
+app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://localhost:27017/render_server")
+mongo_client = MongoClient(os.getenv("MONGO_URI"))
+MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "anime_db")
+app.config["SESSION_TYPE"] = "mongodb"
+app.config["SESSION_MONGODB"] = mongo_client
+app.config["SESSION_MONGODB_DB"] = MONGO_DB_NAME
+app.config["SESSION_MONGODB_COLLECT"] = "flask_sessions"
 
-SESSION_DIR = os.path.join(BASE_DIR, 'flask_session')
+app.config["SESSION_PERMANENT"] = True
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=2)
 
-# create it if missing
-os.makedirs(SESSION_DIR, exist_ok=True)
-app.config['SESSION_TYPE'] = 'filesystem'  # Store session data on the server
-app.config['SESSION_PERMANENT'] = True  # Keep session even after closing browser
-app.config['SESSION_FILE_DIR'] = SESSION_DIR # Folder to store session data
-app.config['SESSION_FILE_THRESHOLD'] = 800   # 500 is default
-app.config['SESSION_USE_SIGNER'] = True
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=2)
-app.config['MAX_CONTENT_LENGTH'] = MAX_UPLOAD_MB * 1024 * 1024  # 10 MB limit
-app.config['SECRET_KEY'] = '_LIFE_OF_Happieness'
+app.config["SECRET_KEY"] = os.environ["FLASK_SECRET_KEY"]
+
 app.config.update(
-    SESSION_COOKIE_SECURE=False,  # !!! PRODUCTION ONLY TRUE
-    SESSION_COOKIE_HTTPONLY=True, 
-    SESSION_COOKIE_SAMESITE='Lax'
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
 )
 
-app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://localhost:27017/render_server")
+Session(app)
 PROFILE_IMAGE_MAX_MB = 5
-MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "anime_db")
+
 api_key_verify=os.getenv("api_key_verify", "")
 verify_url=os.getenv("verify_url",'')
-mongo_client = MongoClient(os.getenv("MONGO_URI"))
+
 mongo_db = mongo_client[MONGO_DB_NAME]
 # * MONGO DB COLLECTIONS >>--- --- -- -> >>--- --- -- -> >>--- --- -- -> >>--- --- -- -> >>--- --- -- -> >>--- --- -- -> >>--- --- -- -> 
 
@@ -1994,7 +1993,7 @@ def anime_detail(anime_id):
         return render_template(
             "login.html"
         )
-
+VERCEL_RANGE_SIZE = 8 * 1024 * 1024  # 8 MB
 @app.get("/stream/<video_id>")
 @login_required
 def stream_video(video_id):
@@ -2044,17 +2043,12 @@ def stream_video(video_id):
     status = 200
 
     if range_header:
-        match = re.match(
-            r"bytes=(\d*)-(\d*)",
-            range_header,
-        )
+        match = re.match(r"bytes=(\d*)-(\d*)", range_header)
 
         if not match:
             return Response(
                 status=416,
-                headers={
-                    "Content-Range": f"bytes */{file_size}",
-                },
+                headers={"Content-Range": f"bytes */{file_size}"},
             )
 
         start_text = match.group(1)
@@ -2064,21 +2058,25 @@ def stream_video(video_id):
             start = int(start_text)
 
         if end_text:
-            end = min(
-                int(end_text),
-                file_size - 1,
-            )
+            requested_end = min(int(end_text), file_size - 1)
+        else:
+            requested_end = file_size - 1
+
+        # Vercel дээр нэг invocation-аар бүх видеог stream хийхгүй.
+        # Нэг request-д хамгийн ихдээ 8 MB өгнө.
+        end = min(
+            requested_end,
+            start + VERCEL_RANGE_SIZE - 1,
+            file_size - 1,
+        )
 
         if start >= file_size or start > end:
             return Response(
                 status=416,
-                headers={
-                    "Content-Range": f"bytes */{file_size}",
-                },
+                headers={"Content-Range": f"bytes */{file_size}"},
             )
 
         status = 206
-
     content_length = end - start + 1
     duration = float(video.get("duration") or 0)
 
