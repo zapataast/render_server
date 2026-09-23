@@ -33,7 +33,7 @@ load_dotenv()
 def utcnow():
     return datetime.now(timezone.utc).replace(tzinfo=None)
 app = Flask(__name__, static_url_path='/static')
-
+MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "2048"))
 app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://localhost:27017/render_server")
 mongo_client = MongoClient(os.getenv("MONGO_URI"))
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "anime_db")
