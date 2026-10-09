@@ -259,25 +259,24 @@ def normalize_phone(phone):
 def display_phone(phone):
     return phone[4:] if phone and phone.startswith("+976") else (phone or "")
 
+import random
+
 def get_random_anonymous_avatar():
-    try:
-        result = cloudinary.api.resources(
-            type="upload",
-            resource_type="image",
-            prefix="avatars/",
-            max_results=100
-        )
+    avatars = [
+        'https://res.cloudinary.com/gchtspsh/image/upload/v1791511351/girl.png',
+        'https://res.cloudinary.com/gchtspsh/image/upload/v1791511349/ghost.png',
+        'https://res.cloudinary.com/gchtspsh/image/upload/v1791511350/sailor.png',
+        'https://res.cloudinary.com/gchtspsh/image/upload/v1791511348/schoolgirl.png',
+        'https://res.cloudinary.com/gchtspsh/image/upload/v1791511348/student.png',
+        'https://res.cloudinary.com/gchtspsh/image/upload/v1791511347/woman.png',
+        'https://res.cloudinary.com/gchtspsh/image/upload/v1791511347/woman_1.png',
+        'https://res.cloudinary.com/gchtspsh/image/upload/v1791511347/student_1.png',
+        'https://res.cloudinary.com/gchtspsh/image/upload/v1791511346/nerd.png',
+        'https://res.cloudinary.com/gchtspsh/image/upload/v1791511346/otaku.png'
+    ]
+    
+    return random.choice(avatars)
 
-        avatars = result.get("resources", [])
-
-        if not avatars:
-            return None
-
-        return random.choice(avatars).get("secure_url")
-
-    except Exception as e:
-        print("Cloudinary avatar error:", e)
-        return None
 def admin_phones():
     raw = os.getenv("ADMIN_PHONES", "85963616,88961331")
     values = set()
