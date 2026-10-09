@@ -1275,9 +1275,199 @@ document.addEventListener(
 
     {% endif %}
 
-</div>
 
+    <!-- HOME COMMENTS -->
+<section id="home-comments" class="max-w-7xl mx-auto px-5 pb-16">
+    <div class="border-t border-white/10 pt-10">
+        <h2 class="text-2xl font-bold mb-2">💬 Сэтгэгдэл</h2>
+        <p class="text-slate-400 text-sm mb-6">
+            Санал бодлоо бусадтай хуваалцаарай.
+        </p>
+
+        <form id="home-comment-form"
+              class="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-8">
+
+            <div class="text-sm text-slate-400 mb-3">
+                {% if user %}
+                    {{ user.nickname or "User" }} нэрээр бичиж байна
+                {% else %}
+                    Anonymous нэрээр бичиж байна
+                {% endif %}
+            </div>
+
+            <textarea id="home-comment-content"
+                      maxlength="1000"
+                      required
+                      rows="3"
+                      placeholder="Сэтгэгдлээ бичнэ үү..."
+                      class="w-full bg-slate-800 rounded-xl border border-slate-700 p-4 text-white outline-none focus:border-indigo-500 resize-none"></textarea>
+
+            <div class="flex flex-wrap justify-between items-center mt-4 gap-3">
+
+    <div class="flex flex-wrap items-center gap-1">
+
+        <!-- ЭХНИЙ 10 EMOJI -->
+        <div id="quick-emoji-list" class="flex flex-wrap items-center gap-1"></div>
+
+        <!-- БУСАД EMOJI -->
+        <div class="relative">
+            <button type="button" id="emoji-toggle"
+                    class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-xl transition"
+                    title="Бусад emoji">
+                ➕
+            </button>
+
+            <div id="emoji-picker"
+                 class="hidden absolute bottom-full left-0 mb-3 w-72 sm:w-96 max-w-[85vw] max-h-64 overflow-y-auto bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl p-3 z-40">
+
+                <div class="text-xs text-slate-400 mb-3">Бусад emoji</div>
+                <div id="emoji-grid" class="grid grid-cols-8 gap-1"></div>
+            </div>
+        </div>
+
+        <span id="comment-message" class="text-sm text-slate-400"></span>
+    </div>
+
+    <button id="comment-submit" type="submit"
+            class="bg-indigo-600 hover:bg-indigo-500 px-6 py-2.5 rounded-xl font-semibold transition">
+        Илгээх →
+    </button>
+
+</div>
+        </form>
+
+        <div class="space-y-4">
+            {% for comment in comments %}
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                <div class="flex gap-3">
+                    <div class="w-10 h-10 shrink-0 rounded-full bg-indigo-600 flex items-center justify-center font-bold">
+                        {{ (comment.nickname or "A")[0]|upper }}
+                    </div>
+
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between gap-3 mb-2">
+                            <span class="font-semibold text-white">
+                                {{ comment.nickname }}
+                            </span>
+                            <span class="text-xs text-slate-500">
+                                {{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            </span>
+                        </div>
+                        <p class="text-slate-300 text-sm whitespace-pre-wrap break-words">{{ comment.content }}</p>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-center text-slate-500 py-8">
+                Одоогоор сэтгэгдэл алга. Эхний сэтгэгдлийг үлдээгээрэй!
+            </p>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+</div>
 <script>
+document.getElementById("home-comment-form").addEventListener("submit", async function(e) {
+    e.preventDefault();
+
+    const content = document.getElementById("home-comment-content").value.trim();
+    const button = document.getElementById("comment-submit");
+    const message = document.getElementById("comment-message");
+
+    if (!content) return;
+
+    button.disabled = true;
+    button.textContent = "Илгээж байна...";
+
+    try {
+        const response = await fetch("/api/home/comments", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({content})
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || "Алдаа гарлаа.");
+        }
+
+        window.location.reload();
+    } catch (error) {
+        message.textContent = error.message;
+        message.className = "text-sm text-red-400";
+    } finally {
+        button.disabled = false;
+        button.textContent = "Илгээх →";
+    }
+});
+document.addEventListener("DOMContentLoaded", function () {
+
+    const textarea = document.getElementById("home-comment-content");
+    const quickList = document.getElementById("quick-emoji-list");
+    const emojiToggle = document.getElementById("emoji-toggle");
+    const emojiPicker = document.getElementById("emoji-picker");
+    const emojiGrid = document.getElementById("emoji-grid");
+
+    if (!textarea || !quickList || !emojiToggle || !emojiPicker || !emojiGrid) return;
+
+    const emojis = [
+        "😊", "👾", "☄️", "😎", "😢", "🌜", "🎉", "⏱️", "🛠️", "❌",
+        "🥺", "☀️", "❗", "🐊", "✅", "‼️", "🔶", "🐳", "☕", "👩",
+        "🔧", "🥶", "😵‍💫", "💫", "💣", "😘", "😔", "😟", "❤️", "🔥",
+        "😂", "😍", "🤣", "👍", "👏", "🙏", "💯", "🎬", "🍿", "💖"
+    ];
+
+    function addEmoji(emoji) {
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+
+        if (textarea.value.length + emoji.length > 1000) return;
+
+        textarea.setRangeText(emoji, start, end, "end");
+        textarea.focus();
+    }
+
+    function createEmojiButton(emoji, container, closePicker = false) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = emoji;
+        button.title = emoji;
+        button.className = "w-9 h-9 flex items-center justify-center rounded-lg text-2xl hover:bg-slate-700 transition";
+
+        button.addEventListener("click", function () {
+            addEmoji(emoji);
+            if (closePicker) emojiPicker.classList.add("hidden");
+        });
+
+        container.appendChild(button);
+    }
+
+    // Эхний 10 emoji шууд харагдана
+    emojis.slice(0, 10).forEach(emoji => {
+        createEmojiButton(emoji, quickList);
+    });
+
+    // Үлдсэн emoji picker дотор
+    emojis.slice(10).forEach(emoji => {
+        createEmojiButton(emoji, emojiGrid, true);
+    });
+
+    emojiToggle.addEventListener("click", function (event) {
+        event.stopPropagation();
+        emojiPicker.classList.toggle("hidden");
+    });
+
+    emojiPicker.addEventListener("click", function (event) {
+        event.stopPropagation();
+    });
+
+    document.addEventListener("click", function () {
+        emojiPicker.classList.add("hidden");
+    });
+
+});
 document.addEventListener('DOMContentLoaded', function () {
     const searchInput = document.getElementById('anime-search');
     const typeFilter = document.getElementById('anime-type-filter');

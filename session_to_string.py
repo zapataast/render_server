@@ -1,6 +1,6 @@
 from telethon.sessions import SQLiteSession, StringSession
 
-SESSION_FILE = "for_render.session"
+SESSION_FILE = "for_versel.session"
 
 session = SQLiteSession(SESSION_FILE)
 

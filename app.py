@@ -65,6 +65,7 @@ mongo_db = mongo_client[MONGO_DB_NAME]
 videos_collection = mongo_db["videos"]
 anime_collection = mongo_db["anime"]
 files_collection = mongo_db["files"]
+home_comments_collection = mongo_db["home_comments"]
 users_collection = mongo_db.users
 genres_collection = mongo_db.genres
 home_slides_collection = mongo_db.home_slides
@@ -1874,6 +1875,14 @@ def home():
     # ==========================================
     # HOME SLIDES
     # ==========================================
+    comments = list(
+    home_comments_collection.find(
+            {"active": True}
+        ).sort("created_at", -1).limit(50)
+    )
+
+    for comment in comments:
+        comment["id"] = str(comment["_id"])
 
     slides = list(
         home_slides_collection.find(
@@ -1912,7 +1921,7 @@ def home():
         user=user,
         slides=slides,
         anime_list=anime_list,
-
+        comments=comments,
         display_phone=display_phone,
 
         is_admin_user=(
@@ -1922,6 +1931,41 @@ def home():
         ),
     )
 
+@app.route("/api/home/comments", methods=["POST"])
+def create_home_comment():
+    user = get_current_user()
+    data = request.get_json(silent=True) or {}
+
+    content = data.get("content", "")
+
+    if not isinstance(content, str):
+        return jsonify({
+            "success": False,
+            "message": "Сэтгэгдэл буруу байна."
+        }), 400
+
+    content = content.strip()
+
+    if not content or len(content) > 1000:
+        return jsonify({
+            "success": False,
+            "message": "Сэтгэгдэл 1-1000 тэмдэгттэй байна."
+        }), 400
+
+    comment = {
+        "user_id": user["_id"] if user else None,
+        "nickname": (user.get("nickname") or "User") if user else "Anonymous",
+        "content": content,
+        "active": True,
+        "created_at": datetime.now(timezone.utc),
+    }
+
+    home_comments_collection.insert_one(comment)
+
+    return jsonify({
+        "success": True,
+        "message": "Сэтгэгдэл амжилттай нэмэгдлээ."
+    })
 @app.route("/anime/<anime_id>")
 def anime_detail(anime_id):
     if get_current_user():   

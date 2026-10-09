@@ -19,7 +19,7 @@ API_HASH = os.getenv(
     "TELEGRAM_API_HASH"
 )
 
-SESSION_NAME = 'for_render'
+SESSION_NAME = 'for_versel'
 
 
 async def main():
