@@ -1059,7 +1059,92 @@ document.addEventListener(
 </section>
 
 {% endif %}
+<!-- LATEST EPISODES -->
+{% if latest_episodes %}
+<section class="max-w-7xl mx-auto px-5 pt-10 pb-4">
 
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h2 class="text-2xl md:text-3xl font-bold text-white">
+                🆕 Сүүлд нэмэгдсэн ангиуд
+            </h2>
+            <p class="text-slate-400 text-sm mt-2">
+                Хамгийн сүүлд нэмэгдсэн 10 анги
+            </p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+
+        {% for episode in latest_episodes %}
+
+        <a href="/anime/{{ episode.anime_id }}"
+           class="group bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-indigo-500 hover:-translate-y-1 transition duration-200">
+
+            <!-- SCREENSHOT / POSTER -->
+            <div class="relative aspect-video bg-slate-800 overflow-hidden">
+
+                {% if episode.image_url %}
+                <img
+                    src="{{ episode.image_url }}"
+                    alt="{{ episode.anime_name }}"
+                    loading="lazy"
+                    class="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                >
+                {% else %}
+                <div class="w-full h-full flex items-center justify-center text-4xl">
+                    🎬
+                </div>
+                {% endif %}
+
+                <!-- EPISODE NUMBER -->
+                {% if episode.episode_number is not none %}
+                <span class="absolute bottom-2 right-2 bg-indigo-600 text-white text-xs font-bold px-2.5 py-1 rounded-lg">
+                    EP {{ episode.episode_number }}
+                </span>
+                {% endif %}
+
+                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center">
+                    <span class="opacity-0 group-hover:opacity-100 transition bg-white/90 text-slate-950 w-11 h-11 rounded-full flex items-center justify-center text-lg">
+                        ▶
+                    </span>
+                </div>
+
+            </div>
+
+            <!-- INFO -->
+            <div class="p-3">
+
+                <h3 class="text-sm font-semibold text-white line-clamp-2 group-hover:text-indigo-400 transition">
+                    {{ episode.anime_name }}
+                </h3>
+
+                <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
+
+                    <span class="text-xs text-indigo-400">
+                        {% if episode.episode_number is not none %}
+                            {{ episode.episode_number }}-р анги
+                        {% else %}
+                            Видео
+                        {% endif %}
+                    </span>
+
+                    <span class="text-xs text-slate-500">
+                        {{ episode.created_at.strftime('%Y-%m-%d') }}
+                    </span>
+
+                </div>
+
+            </div>
+
+        </a>
+
+        {% endfor %}
+
+    </div>
+
+</section>
+{% endif %}
 <div class="max-w-7xl mx-auto px-5 py-10">
 
     <!-- HEADER -->

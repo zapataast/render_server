@@ -2,6 +2,7 @@ import os, re, asyncio, tempfile
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
+from uuid import uuid4
 from bson.objectid import ObjectId
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
@@ -13,7 +14,9 @@ import requests
 from pymongo import MongoClient, ReturnDocument
 from uploader import upload_video_to_telegram,upload_file_to_telegram
 from utils import *
+import io
 import cloudinary
+from PIL import Image, ImageOps
 import random
 import cloudinary.api
 import cloudinary.uploader
@@ -277,6 +280,43 @@ def get_random_anonymous_avatar():
     
     return random.choice(avatars)
 
+def get_random_video_screenshot(video_path, duration):
+    if not duration or float(duration) <= 240:
+        return None
+
+    second = random.randint(240, min(480, int(float(duration)) - 1))
+
+    try:
+        result = subprocess.run(
+            [
+                "ffmpeg",
+                "-hide_banner",
+                "-loglevel", "error",
+                "-ss", str(second),
+                "-i", video_path,
+                "-frames:v", "1",
+                "-vf", "scale=1280:-2",
+                "-q:v", "5",
+                "-f", "image2pipe",
+                "-vcodec", "mjpeg",
+                "pipe:1",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=45,
+            check=True,
+        )
+
+        if result.stdout:
+            return {
+                "second": second,
+                "image_bytes": result.stdout,
+            }
+
+    except (subprocess.SubprocessError, OSError) as exc:
+        print("Screenshot error:", exc)
+
+    return None
 def admin_phones():
     raw = os.getenv("ADMIN_PHONES", "85963616,88961331")
     values = set()
@@ -366,6 +406,101 @@ def home_slides_admin_page():
     "/api/admin/home-slides",
     methods=["GET"],
 )
+
+def upload_image_to_cloudinary(
+    image_bytes,
+    folder_name="anime_screenshots",
+    image_format="webp",
+    compress=True,
+    quality=75,
+    max_width=1280,
+):
+    try:
+        if image_format not in ("webp", "original"):
+            raise ValueError("image_format нь webp эсвэл original байна.")
+
+        image = Image.open(io.BytesIO(image_bytes))
+        image = ImageOps.exif_transpose(image)
+        original_format = (image.format or "JPEG").upper()
+
+        if original_format not in ("JPEG", "PNG", "WEBP"):
+            original_format = "PNG"
+
+        if compress and image.width > max_width:
+            new_height = round(image.height * max_width / image.width)
+            image = image.resize(
+                (max_width, new_height),
+                Image.Resampling.LANCZOS
+            )
+
+        output = io.BytesIO()
+
+        if image_format == "webp":
+            if image.mode not in ("RGB", "RGBA"):
+                image = image.convert("RGBA" if "A" in image.getbands() else "RGB")
+
+            image.save(
+                output,
+                format="WEBP",
+                quality=quality if compress else 100,
+                method=6,
+                lossless=not compress,
+            )
+            extension = "webp"
+
+        else:
+            if original_format == "JPEG":
+                if image.mode != "RGB":
+                    image = image.convert("RGB")
+
+                image.save(
+                    output,
+                    format="JPEG",
+                    quality=quality if compress else 95,
+                    optimize=True,
+                )
+                extension = "jpg"
+
+            elif original_format == "PNG":
+                image.save(
+                    output,
+                    format="PNG",
+                    optimize=compress,
+                )
+                extension = "png"
+
+            else:
+                image.save(
+                    output,
+                    format="WEBP",
+                    quality=quality if compress else 100,
+                    method=6,
+                    lossless=not compress,
+                )
+                extension = "webp"
+
+        output.seek(0)
+        processed_bytes = output.getvalue()
+
+        result = cloudinary.uploader.upload(
+            processed_bytes,
+            folder=folder_name,
+            public_id=f"img_{uuid4().hex}",
+            resource_type="image",
+            format=extension,
+            overwrite=False,
+        )
+
+        return {
+            "url": result["secure_url"],
+            "public_id": result["public_id"],
+            "format": extension,
+            "size": len(processed_bytes),
+        }
+
+    except Exception as exc:
+        print("Cloudinary image upload error:", exc)
+        return None
 def api_home_slides_list():
 
     slides = list(
@@ -1812,7 +1947,37 @@ def upload_video():
         telegram_result = asyncio.run(
             upload_video_to_telegram(temp_path, caption=caption)
         )
+        cloudinary_screenshots = []
+        screenshot = get_random_video_screenshot(temp_path, duration)
 
+        cloudinary_screenshot = None
+
+        if screenshot:
+            result = upload_image_to_cloudinary(
+                screenshot["image_bytes"],
+                folder_name="anime_screenshots",
+                quality=75
+            )
+            '''
+            result = upload_image_to_cloudinary(
+                avatar_bytes,
+                folder_name="avatars",
+                image_format="original",
+                compress=False,
+            )
+            '''
+
+            if result:
+                cloudinary_screenshot = {
+                    "second": screenshot["second"],
+                    **result,
+                }
+
+        if result:
+            cloudinary_screenshots.append({
+                "second": screenshot["second"],
+                **result,
+            })
         metadata = {
             "anime_id": anime_id,
             "title": title,
@@ -1822,6 +1987,7 @@ def upload_video():
             "file_name": telegram_result.get("file_name") or original_name,
             "file_size": telegram_result.get("file_size") or file_size,
             "duration": duration,
+            "screenshot": cloudinary_screenshot,
             "is_uploaded": True,
         }
         #djang = send_video_info_to_django(metadata)
@@ -1933,13 +2099,48 @@ def home():
 
     for anime in anime_list:
         anime["id"] = str(anime["_id"])
+    # ==========================================
+    # LATEST 10 UPLOADED EPISODES
+    # ==========================================
 
+    latest_videos = list(
+        videos_collection.find({
+            "is_uploaded": True,
+            "anime_id": {"$ne": None}
+        }).sort("_id", -1).limit(10)
+    )
+
+    anime_map = {
+        str(anime["_id"]): anime
+        for anime in anime_list
+    }
+
+    latest_episodes = []
+
+    for video in latest_videos:
+        anime = anime_map.get(str(video.get("anime_id")))
+
+        if not anime:
+            continue
+
+        screenshot = video.get("screenshot") or {}
+
+        latest_episodes.append({
+            "id": str(video["_id"]),
+            "anime_id": str(anime["_id"]),
+            "anime_name": anime.get("name", ""),
+            "image_url": screenshot.get("url") or anime.get("image_url", ""),
+            "episode_number": video.get("episode_number"),
+            "title": video.get("title", ""),
+            "created_at": video["_id"].generation_time,
+        })
     return render_template(
         "home.html",
 
         user=user,
         slides=slides,
         anime_list=anime_list,
+        latest_episodes=latest_episodes,
         comments=comments,
         display_phone=display_phone,
 
