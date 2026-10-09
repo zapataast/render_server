@@ -14,6 +14,8 @@ from pymongo import MongoClient, ReturnDocument
 from uploader import upload_video_to_telegram,upload_file_to_telegram
 from utils import *
 import cloudinary
+import random
+import cloudinary.api
 import cloudinary.uploader
 import mimetypes
 import re
@@ -257,7 +259,25 @@ def normalize_phone(phone):
 def display_phone(phone):
     return phone[4:] if phone and phone.startswith("+976") else (phone or "")
 
+def get_random_anonymous_avatar():
+    try:
+        result = cloudinary.api.resources(
+            type="upload",
+            resource_type="image",
+            prefix="avatars/",
+            max_results=100
+        )
 
+        avatars = result.get("resources", [])
+
+        if not avatars:
+            return None
+
+        return random.choice(avatars).get("secure_url")
+
+    except Exception as e:
+        print("Cloudinary avatar error:", e)
+        return None
 def admin_phones():
     raw = os.getenv("ADMIN_PHONES", "85963616,88961331")
     values = set()
@@ -1951,12 +1971,18 @@ def create_home_comment():
             "success": False,
             "message": "Сэтгэгдэл 1-1000 тэмдэгттэй байна."
         }), 400
-
+    avatar_url = (
+        user.get("avatar_url")
+        if user
+        else get_random_anonymous_avatar()
+    )
+    print("🐍 File: render_server/app.py | Line: 1978 | create_home_comment ~ avatar_url",avatar_url)
     comment = {
         "user_id": user["_id"] if user else None,
         "nickname": (user.get("nickname") or "User") if user else "Anonymous",
         "content": content,
         "active": True,
+        "avatar_url": avatar_url,
         "created_at": datetime.now(timezone.utc),
     }
 
@@ -3694,4 +3720,4 @@ def admin_user_delete(user_id):
         "message": "Хэрэглэгч амжилттай устлаа."
     })
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=False)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=True)

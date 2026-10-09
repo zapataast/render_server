@@ -1340,9 +1340,16 @@ document.addEventListener(
             {% for comment in comments %}
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
                 <div class="flex gap-3">
-                    <div class="w-10 h-10 shrink-0 rounded-full bg-indigo-600 flex items-center justify-center font-bold">
-                        {{ (comment.nickname or "A")[0]|upper }}
-                    </div>
+                    {% if comment.avatar_url %}
+                        <img src="{{ comment.avatar_url }}"
+                            alt="Avatar"
+                            loading="lazy"
+                            class="w-10 h-10 shrink-0 rounded-full object-cover bg-slate-800 border border-white/10">
+                    {% else %}
+                        <div class="w-10 h-10 shrink-0 rounded-full bg-indigo-600 flex items-center justify-center font-bold">
+                            {{ (comment.nickname or "A")[0]|upper }}
+                        </div>
+                    {% endif %}
 
                     <div class="flex-1 min-w-0">
                         <div class="flex justify-between gap-3 mb-2">
@@ -1413,7 +1420,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!textarea || !quickList || !emojiToggle || !emojiPicker || !emojiGrid) return;
 
     const emojis = [
-        "😊", "👾", "☄️", "😎", "😢", "🌜", "🎉", "⏱️", "🛠️", "❌",
+        "😊", "😃", "😁", "😎", "😢", "😅", "🙂", "🥰", "🛠️", "❌",
         "🥺", "☀️", "❗", "🐊", "✅", "‼️", "🔶", "🐳", "☕", "👩",
         "🔧", "🥶", "😵‍💫", "💫", "💣", "😘", "😔", "😟", "❤️", "🔥",
         "😂", "😍", "🤣", "👍", "👏", "🙏", "💯", "🎬", "🍿", "💖"
