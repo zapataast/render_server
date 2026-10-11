@@ -11,6 +11,32 @@ from pymongo import MongoClient
 from dotenv import load_dotenv
 from pymongo import MongoClient
 
+def create_invoice_paylink(amount=0, msg='' , merchant_ref='Nirgee'):
+    pc ="cu0900"
+    url = paylink_url + "/v1/external/process"
+
+    payload = {
+        "amount_total": 2000,
+        "count_total": 1,
+        "amount": 2000,
+        "txndesc": msg,
+        "merchant_ref": merchant_ref,
+        "fee_percent": 0,
+        "fee_amount": 0,
+        "base_amount": 2000
+    }
+    headers = {
+        "content-type": "application/json",
+        "pc": pc,
+        "X-SIGNATURE": "FigQsKwdws3HNNT3dPHYVU7vpYnsH2gpT90KAgAz86cNGVftFxcgnaKAS3PNbSriJJZEyLI2IcUqn/KbplEseA==",
+        "X-USERNAME": "zapataast@gmail.com"
+    }
+
+    response = requests.post(url, json=payload, headers=headers)
+
+    print(response.json())
+
+    return response.json()
 
 def verify_msg_log(uid,verify_url=None):
     import requests

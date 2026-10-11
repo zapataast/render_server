@@ -5,15 +5,15 @@ from pathlib import Path
 from uuid import uuid4
 from bson.objectid import ObjectId
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify,current_app,Blueprint
 from flask_pymongo import PyMongo
+from werkzeug.utils import secure_filename
 from pymongo.errors import DuplicateKeyError
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone
 import requests
 from pymongo import MongoClient, ReturnDocument
 from uploader import upload_video_to_telegram,upload_file_to_telegram
-from utils import *
 import io
 import cloudinary
 from PIL import Image, ImageOps
@@ -42,6 +42,9 @@ MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "2048"))
 app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://localhost:27017/render_server")
 mongo_client = MongoClient(os.getenv("MONGO_URI"))
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "anime_db")
+
+paylink_url = os.getenv("paylink_url", "")
+from utils import *
 app.config["SESSION_TYPE"] = "mongodb"
 app.config["SESSION_MONGODB"] = mongo_client
 app.config["SESSION_MONGODB_DB"] = MONGO_DB_NAME
@@ -71,10 +74,16 @@ videos_collection = mongo_db["videos"]
 anime_collection = mongo_db["anime"]
 files_collection = mongo_db["files"]
 home_comments_collection = mongo_db["home_comments"]
+zip_files = mongo_db["zip_files"]
 users_collection = mongo_db.users
 genres_collection = mongo_db.genres
 home_slides_collection = mongo_db.home_slides
+DOWNLOAD_CATEGORIES = {
+    "game", "software", "application",
+    "document", "ebook", "other"
+}
 
+MAX_COVER_SIZE = 5 * 1024 * 1024
 
 ALLOWED_FILE_EXTENSIONS = {
     ".pdf",
@@ -501,6 +510,7 @@ def upload_image_to_cloudinary(
     except Exception as exc:
         print("Cloudinary image upload error:", exc)
         return None
+
 def api_home_slides_list():
 
     slides = list(
@@ -1898,6 +1908,7 @@ def uploader_page():
 
 
 from bson import ObjectId
+from bson.errors import InvalidId
 @app.post("/api/admin/upload-video")
 @admin_required
 def upload_video():
@@ -3919,5 +3930,670 @@ def admin_user_delete(user_id):
         "ok": True,
         "message": "Хэрэглэгч амжилттай устлаа."
     })
+def upload_download_cover_to_cloudinary(file):
+    if not file or not file.filename:
+        return None
+
+    if file.mimetype not in ("image/jpeg", "image/png", "image/webp"):
+        raise ValueError("Cover зураг JPG, PNG, WEBP байх ёстой.")
+
+    image_bytes = file.read(MAX_COVER_SIZE + 1)
+
+    if not image_bytes or len(image_bytes) > MAX_COVER_SIZE:
+        raise ValueError("Cover зураг 5 MB-аас бага байх ёстой.")
+
+    import io
+
+    try:
+        with Image.open(io.BytesIO(image_bytes)) as image:
+            if image.format not in ("JPEG", "PNG", "WEBP"):
+                raise ValueError("Зургийн формат буруу байна.")
+            image.verify()
+    except (UnidentifiedImageError, OSError, Image.DecompressionBombError):
+        raise ValueError("Зургийн файл гэмтсэн эсвэл буруу байна.")
+
+    result = cloudinary.uploader.upload(
+        image_bytes,
+        folder="download/covers",
+        resource_type="image",
+        transformation=[
+            {"quality": "auto", "fetch_format": "auto"}
+        ]
+    )
+
+    return {
+        "url": result["secure_url"],
+        "public_id": result["public_id"]
+    }
+
+
+def delete_download_cover_from_cloudinary(cover):
+    public_id = (cover or {}).get("public_id")
+
+    if public_id:
+        cloudinary.uploader.destroy(
+            public_id,
+            resource_type="image",
+            invalidate=True
+        )
+@app.route("/admin/download-items")
+def admin_download_items():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    # Энд одоо байгаа project-ийн admin эрх шалгах логикийг ашиглана.
+    if not is_admin(current_user()):
+        abort(403)
+
+    return render_template("download_items.html")
+
+from urllib.parse import urlsplit
+
+def validate_external_url(value):
+    value = (value or "").strip()
+
+    try:
+        parsed = urlsplit(value)
+        if (
+            parsed.scheme != "https"
+            or not parsed.hostname
+            or parsed.username
+            or parsed.password
+            or len(value) > 2048
+        ):
+            raise ValueError()
+    except ValueError:
+        raise ValueError("External URL хүчинтэй HTTPS холбоос байх ёстой.")
+
+    return value
+
+@app.route("/admin/api/upload", methods=["POST"])
+@admin_required
+def admin_upload():
+    # ==========================================
+    # 1. FORM VALUES
+    # ==========================================
+    title = request.form.get("title", "").strip()
+    description = request.form.get("description", "").strip()
+    category = request.form.get("category", "other").strip().lower()
+    access_type = request.form.get("access_type", "free").strip().lower()
+    storage_type = request.form.get("storage_type", "telegram").strip().lower()
+    price_raw = request.form.get("price", "0").strip()
+
+    file = request.files.get("file")
+    cover_file = request.files.get("cover")
+
+    # ==========================================
+    # 2. VALIDATION
+    # ==========================================
+    if not title or len(title) > 200:
+        return jsonify({
+            "success": False,
+            "message": "Item нэр 1–200 тэмдэгт байх ёстой."
+        }), 400
+
+    if category not in DOWNLOAD_CATEGORIES:
+        return jsonify({
+            "success": False,
+            "message": "Category буруу байна."
+        }), 400
+
+    if access_type not in ("free", "paid"):
+        return jsonify({
+            "success": False,
+            "message": "Access type буруу байна."
+        }), 400
+
+    if storage_type not in ("telegram", "external"):
+        return jsonify({
+            "success": False,
+            "message": "Storage type буруу байна."
+        }), 400
+
+    try:
+        if access_type == "paid":
+            if not price_raw.isdigit():
+                raise ValueError()
+
+            price = int(price_raw)
+
+            if price <= 0:
+                raise ValueError()
+        else:
+            price = 0
+
+    except (ValueError, TypeError):
+        return jsonify({
+            "success": False,
+            "message": "Үнэ зөв оруулна уу."
+        }), 400
+
+    # ==========================================
+    # 3. EXTERNAL URL VALIDATION
+    # ==========================================
+    external_url = None
+
+    if storage_type == "external":
+        try:
+            external_url = validate_external_url(
+                request.form.get("external_url")
+            )
+        except ValueError as exc:
+            return jsonify({
+                "success": False,
+                "message": str(exc)
+            }), 400
+
+    # ==========================================
+    # 4. TELEGRAM FILE VALIDATION
+    # ==========================================
+    filename = ""
+    file_type = ""
+    file_size = 0
+
+    if storage_type == "telegram":
+        if not file or not file.filename:
+            return jsonify({
+                "success": False,
+                "message": "Telegram файл сонгоно уу."
+            }), 400
+
+        filename = secure_filename(file.filename)
+
+        if not filename:
+            return jsonify({
+                "success": False,
+                "message": "Файлын нэр буруу байна."
+            }), 400
+
+        file_type = Path(filename).suffix.lower().lstrip(".")
+
+    # ==========================================
+    # 5. UPLOAD + SAVE
+    # ==========================================
+    telegram_data = None
+    cover_data = None
+    mongo_saved = False
+
+    try:
+        # --------------------------------------
+        # A. TELEGRAM UPLOAD
+        # --------------------------------------
+        if storage_type == "telegram":
+            with tempfile.TemporaryDirectory() as temp_dir:
+                file_path = os.path.join(temp_dir, filename)
+                file.save(file_path)
+
+                file_size = os.path.getsize(file_path)
+
+                if file_size == 0:
+                    return jsonify({
+                        "success": False,
+                        "message": "Хоосон файл upload хийх боломжгүй."
+                    }), 400
+
+                is_video = file_type in {
+                    "mp4", "mkv", "mov", "webm", "avi"
+                }
+
+                upload_result = asyncio.run(
+                    upload_video_to_telegram(
+                        file_path,
+                        caption=title,
+                        is_video=is_video
+                    )
+                )
+
+                if not upload_result or not upload_result.get("success"):
+                    raise RuntimeError("Telegram upload амжилтгүй.")
+
+                telegram_data = {
+                    "channel_id": upload_result.get("channel_id"),
+                    "message_id": upload_result.get("message_id"),
+                    "file_name": filename,
+                    "file_size": upload_result.get("file_size", file_size)
+                }
+
+        # --------------------------------------
+        # B. CLOUDINARY COVER UPLOAD
+        # --------------------------------------
+        if cover_file and cover_file.filename:
+            cover_data = upload_download_cover_to_cloudinary(
+                cover_file
+            )
+
+        # --------------------------------------
+        # C. MONGODB SAVE
+        # --------------------------------------
+        now = datetime.now(timezone.utc)
+
+        item = {
+            "item_type": "download",
+            "title": title,
+            "description": description,
+            "category": category,
+            "access_type": access_type,
+            "price": price,
+            "currency": "MNT",
+            "storage_type": storage_type,
+            "external_url": external_url,
+            "file_type": file_type,
+            "telegram": telegram_data,
+            "cover": cover_data,
+            "is_published": False,
+            "download_count": 0,
+            "created_at": now,
+            "updated_at": now
+        }
+
+        result = zip_files.insert_one(item)
+        mongo_saved = True
+
+        # --------------------------------------
+        # D. RESPONSE
+        # --------------------------------------
+        return jsonify({
+            "success": True,
+            "message": (
+                "External Link амжилттай бүртгэгдлээ."
+                if storage_type == "external"
+                else "Telegram файл амжилттай бүртгэгдлээ."
+            ),
+            "item_id": str(result.inserted_id),
+            "storage_type": storage_type,
+            "telegram": telegram_data,
+            "external_url": external_url,
+            "cover": cover_data
+        }), 201
+
+    except ValueError as exc:
+        return jsonify({
+            "success": False,
+            "message": str(exc)
+        }), 400
+
+    except Exception:
+        current_app.logger.exception("Admin upload failed")
+
+        if cover_data and not mongo_saved:
+            try:
+                delete_download_cover_from_cloudinary(cover_data)
+            except Exception:
+                current_app.logger.exception(
+                    "Cloudinary cover rollback failed"
+                )
+
+        return jsonify({
+            "success": False,
+            "message": "Item бүртгэхэд алдаа гарлаа."
+        }), 500
+
+@app.route("/admin/api/download-items", methods=["GET"])
+@admin_required
+def get_download_items():
+    try:
+        items = list(
+            zip_files.find({
+                "item_type": "download"
+            }).sort("created_at", -1)
+        )
+
+        for item in items:
+            item["_id"] = str(item["_id"])
+
+            item["cover_url"] = (
+                (item.get("cover") or {}).get("url")
+            )
+
+            item["category"] = item.get("category", "other")
+
+            if isinstance(item.get("created_at"), datetime):
+                item["created_at"] = item["created_at"].isoformat()
+
+            if isinstance(item.get("updated_at"), datetime):
+                item["updated_at"] = item["updated_at"].isoformat()
+
+        return jsonify({
+            "success": True,
+            "items": items,
+            "total": len(items)
+        }), 200
+
+    except Exception:
+        current_app.logger.exception("Get download items failed")
+
+        return jsonify({
+            "success": False,
+            "message": "Бүртгэлүүдийг авахад алдаа гарлаа."
+        }), 500
+
+@app.route("/admin/api/download-items/<item_id>", methods=["PATCH"])
+@admin_required
+def update_download_item(item_id):
+    try:
+        object_id = ObjectId(item_id)
+    except (InvalidId, TypeError):
+        return jsonify({
+            "success": False,
+            "message": "Item ID буруу."
+        }), 400
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({
+            "success": False,
+            "message": "JSON өгөгдөл буруу."
+        }), 400
+
+    title = data.get("title", "")
+    description = data.get("description", "")
+    category = data.get("category", "other")
+    access_type = data.get("access_type", "free")
+    is_published = data.get("is_published", False)
+
+    if not isinstance(title, str) or not title.strip() or len(title) > 200:
+        return jsonify({
+            "success": False,
+            "message": "Item нэр буруу."
+        }), 400
+
+    if not isinstance(description, str):
+        return jsonify({
+            "success": False,
+            "message": "Тайлбар буруу."
+        }), 400
+
+    if category not in DOWNLOAD_CATEGORIES:
+        return jsonify({
+            "success": False,
+            "message": "Category буруу."
+        }), 400
+
+    if access_type not in ("free", "paid"):
+        return jsonify({
+            "success": False,
+            "message": "Access type буруу."
+        }), 400
+
+    if not isinstance(is_published, bool):
+        return jsonify({
+            "success": False,
+            "message": "Published утга буруу."
+        }), 400
+
+    try:
+        raw_price = data.get("price", 0)
+
+        if access_type == "paid":
+            if isinstance(raw_price, bool):
+                raise ValueError()
+
+            if not str(raw_price).isdigit():
+                raise ValueError()
+
+            price = int(raw_price)
+
+            if price <= 0:
+                raise ValueError()
+        else:
+            price = 0
+
+    except (TypeError, ValueError):
+        return jsonify({
+            "success": False,
+            "message": "Үнэ буруу."
+        }), 400
+
+    update_data = {
+        "title": title.strip(),
+        "description": description.strip(),
+        "category": category,
+        "access_type": access_type,
+        "price": price,
+        "currency": "MNT",
+        "is_published": is_published,
+        "updated_at": datetime.now(timezone.utc)
+    }
+
+    try:
+        result = zip_files.update_one(
+            {
+                "_id": object_id,
+                "item_type": "download"
+            },
+            {"$set": update_data}
+        )
+
+        if not result.matched_count:
+            return jsonify({
+                "success": False,
+                "message": "Item олдсонгүй."
+            }), 404
+
+        return jsonify({
+            "success": True,
+            "message": "Item амжилттай шинэчлэгдлээ.",
+            "item_id": item_id
+        }), 200
+
+    except Exception:
+        current_app.logger.exception("Update download item failed")
+
+        return jsonify({
+            "success": False,
+            "message": "Item засахад алдаа гарлаа."
+        }), 500
+
+@app.route("/admin/api/download-items/<item_id>/cover", methods=["POST"])
+@admin_required
+def update_download_item_cover(item_id):
+    try:
+        object_id = ObjectId(item_id)
+    except (InvalidId, TypeError):
+        return jsonify({
+            "success": False,
+            "message": "Item ID буруу."
+        }), 400
+
+    item = zip_files.find_one({
+        "_id": object_id,
+        "item_type": "download"
+    })
+
+    if not item:
+        return jsonify({
+            "success": False,
+            "message": "Item олдсонгүй."
+        }), 404
+
+    cover_file = request.files.get("cover")
+
+    if not cover_file or not cover_file.filename:
+        return jsonify({
+            "success": False,
+            "message": "Cover зураг сонгоно уу."
+        }), 400
+
+    new_cover = None
+
+    try:
+        new_cover = upload_download_cover_to_cloudinary(
+            cover_file
+        )
+
+        result = zip_files.update_one(
+            {
+                "_id": object_id,
+                "item_type": "download"
+            },
+            {
+                "$set": {
+                    "cover": new_cover,
+                    "updated_at": datetime.now(timezone.utc)
+                }
+            }
+        )
+
+        if result.matched_count == 0:
+            delete_download_cover_from_cloudinary(new_cover)
+            return jsonify({
+                "success": False,
+                "message": "Item олдсонгүй."
+            }), 404
+
+        old_cover = item.get("cover")
+
+        if old_cover:
+            try:
+                delete_download_cover_from_cloudinary(old_cover)
+            except Exception:
+                current_app.logger.exception(
+                    "Old Cloudinary cover cleanup failed"
+                )
+
+        return jsonify({
+            "success": True,
+            "message": "Cover зураг шинэчлэгдлээ.",
+            "cover": new_cover
+        }), 200
+
+    except ValueError as exc:
+        return jsonify({
+            "success": False,
+            "message": str(exc)
+        }), 400
+
+    except Exception:
+        current_app.logger.exception("Update cover failed")
+
+        if new_cover:
+            try:
+                delete_download_cover_from_cloudinary(new_cover)
+            except Exception:
+                current_app.logger.exception("Cover rollback failed")
+
+        return jsonify({
+            "success": False,
+            "message": "Cover зураг солиход алдаа гарлаа."
+        }), 500
+
+
+@app.route("/admin/api/download-items/<item_id>", methods=["DELETE"])
+@admin_required
+def delete_download_item(item_id):
+    try:
+        object_id = ObjectId(item_id)
+    except (InvalidId, TypeError):
+        return jsonify({
+            "success": False,
+            "message": "Item ID буруу."
+        }), 400
+
+    try:
+        item = zip_files.find_one({
+            "_id": object_id,
+            "item_type": "download"
+        })
+
+        if not item:
+            return jsonify({
+                "success": False,
+                "message": "Item олдсонгүй."
+            }), 404
+
+        result = zip_files.delete_one({
+            "_id": object_id,
+            "item_type": "download"
+        })
+
+        if not result.deleted_count:
+            return jsonify({
+                "success": False,
+                "message": "Item устгагдсангүй."
+            }), 404
+
+        cover = item.get("cover")
+
+        if cover:
+            try:
+                delete_download_cover_from_cloudinary(cover)
+            except Exception:
+                current_app.logger.exception(
+                    "Cloudinary delete failed"
+                )
+
+        return jsonify({
+            "success": True,
+            "message": "Item устгагдлаа. Telegram файл хэвээр үлдсэн.",
+            "item_id": item_id
+        }), 200
+
+    except Exception:
+        current_app.logger.exception("Delete download item failed")
+
+        return jsonify({
+            "success": False,
+            "message": "Item устгахад алдаа гарлаа."
+        }), 500
+
+@app.route("/software")
+def software_page():
+    q = request.args.get("q", "").strip()
+    category = request.args.get("category", "").strip().lower()
+
+    query = {
+        "item_type": "download",
+        "is_published": True,
+    }
+
+    if category:
+        query["category"] = category
+
+    if q:
+        query["title"] = {"$regex": q, "$options": "i"}
+
+    items = list(
+        zip_files.find(query).sort("created_at", -1)
+    )
+
+    for item in items:
+        item["_id"] = str(item["_id"])
+        item["cover_url"] = (item.get("cover") or {}).get("url")
+        item["detail_url"] = url_for(
+            "software_detail_page",
+            item_id=item["_id"]
+        )
+
+    return render_template(
+        "software/list.html",
+        items=items,
+        selected_category=category,
+        search_query=q,
+    )
+
+@app.route("/software/<item_id>")
+def software_detail_page(item_id):
+    try:
+        object_id = ObjectId(item_id)
+    except Exception:
+        abort(404)
+
+    item = zip_files.find_one({
+        "_id": object_id,
+        "item_type": "download",
+        "is_published": True,
+    })
+
+    if not item:
+        abort(404)
+
+    item["_id"] = str(item["_id"])
+    item["cover_url"] = (item.get("cover") or {}).get("url")
+
+    return render_template(
+        "software/detail.html",
+        item=item
+    )
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=False)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=True)

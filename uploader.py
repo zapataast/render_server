@@ -446,7 +446,10 @@ async def upload_file_to_telegram(
     finally:
 
         await client.disconnect()
-async def upload_video_to_telegram(file_path, caption=""):
+
+
+
+async def upload_video_to_telegram(file_path, caption="", is_video=True):
     path = Path(file_path)
     if not path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
@@ -457,16 +460,14 @@ async def upload_video_to_telegram(file_path, caption=""):
     await client.connect()
     try:
         if not await client.is_user_authorized():
-            raise RuntimeError(
-                "Telegram session is not authorized. Set TELEGRAM_SESSION on Render."
-            )
+            raise RuntimeError("Telegram session is not authorized.")
 
         message = await client.send_file(
             channel_id,
             str(path),
             caption=caption,
-            supports_streaming=True,
-            force_document=False,
+            supports_streaming=is_video,
+            force_document=not is_video,
         )
 
         return {

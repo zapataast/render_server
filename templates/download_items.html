@@ -1,0 +1,649 @@
+
+{% extends "base.html" %}
+{% block title %}Download Items{% endblock %}
+
+{% block body %}
+<style>
+    .dl-page { max-width: 1100px; margin: 0 auto; padding: 30px 20px 60px; }
+    .dl-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; }
+    .dl-header h1 { margin: 0; font-size: 25px; color: #0f172a; }
+    .dl-header p { color: #64748b; font-size: 13px; }
+    .dl-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 25px; margin-bottom: 24px; box-shadow: 0 4px 20px rgba(15,23,42,.04); }
+    .dl-card h2 { font-size: 20px; margin: 0 0 20px; }
+    .dl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .dl-field { margin-bottom: 16px; }
+    .dl-field.full { grid-column: 1 / -1; }
+    .dl-field label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 7px; color: #334155; }
+    .dl-field input, .dl-field textarea, .dl-field select { width: 100%; padding: 11px 12px; border: 1px solid #cbd5e1; border-radius: 10px; background: white; font: inherit; box-sizing: border-box; }
+    .dl-field textarea { min-height: 90px; resize: vertical; }
+    .dl-field input:focus, .dl-field textarea:focus, .dl-field select:focus { outline: 2px solid #c7d2fe; border-color: #6366f1; }
+    .dl-upload-box { padding: 24px; border: 2px dashed #c7d2fe; border-radius: 12px; background: #f8faff; text-align: center; }
+    .dl-upload-box input { max-width: 100%; }
+    .dl-file-info { font-size: 12px; margin-top: 10px; color: #64748b; word-break: break-word; }
+    .dl-btn { border: none; background: #4f46e5; color: white; padding: 11px 18px; border-radius: 10px; font-weight: 700; cursor: pointer; }
+    .dl-btn:hover { background: #4338ca; }
+    .dl-btn:disabled { opacity: .6; cursor: not-allowed; }
+    .dl-btn-secondary { background: #f1f5f9; color: #334155; }
+    .dl-btn-secondary:hover { background: #e2e8f0; }
+    .dl-btn-danger { background: #fef2f2; color: #dc2626; }
+    .dl-btn-danger:hover { background: #fee2e2; }
+    .dl-actions { display: flex; gap: 7px; flex-wrap: wrap; }
+    .dl-actions button { padding: 7px 11px; font-size: 12px; }
+    .dl-alert { display: none; margin-top: 15px; padding: 12px 15px; border-radius: 10px; font-size: 13px; }
+    .dl-alert.success { display: block; background: #ecfdf5; color: #047857; }
+    .dl-alert.error { display: block; background: #fef2f2; color: #b91c1c; }
+    .dl-progress { display: none; margin-top: 20px; }
+    .dl-progress-track { height: 10px; background: #e2e8f0; border-radius: 20px; overflow: hidden; }
+    .dl-progress-fill { width: 0%; height: 100%; background: #6366f1; transition: width .2s; }
+    .dl-progress-text { font-size: 12px; color: #64748b; margin-top: 8px; }
+    .dl-list-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+    .dl-list-header h2 { margin: 0 0 5px; }
+    .dl-list-header input { padding: 10px; border-radius: 10px; border: 1px solid #cbd5e1; }
+    .dl-table-wrap { overflow-x: auto; }
+    .dl-table { width: 100%; min-width: 800px; border-collapse: collapse; }
+    .dl-table th, .dl-table td { padding: 13px 11px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: middle; font-size: 13px; }
+    .dl-table th { background: #f8fafc; color: #64748b; font-size: 12px; }
+    .dl-filename { color: #94a3b8; font-size: 11px; display: block; margin-top: 5px; word-break: break-all; }
+    .dl-badge { display: inline-block; padding: 5px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+    .dl-badge.free { background: #ecfdf5; color: #047857; }
+    .dl-badge.paid { background: #f5f3ff; color: #7c3aed; }
+    .dl-badge.published { background: #dcfce7; color: #166534; }
+    .dl-badge.draft { background: #f1f5f9; color: #64748b; }
+    .dl-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,.55); z-index: 9999; align-items: center; justify-content: center; padding: 15px; }
+    .dl-modal-overlay.open { display: flex; }
+    .dl-modal { background: white; border-radius: 18px; padding: 25px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; }
+    .dl-modal h2 { margin: 0 0 22px; }
+    .dl-modal-footer { display: flex; justify-content: flex-end; gap: 10px; }
+    .dl-empty { text-align: center; padding: 28px; color: #64748b; }
+    .dl-muted { color: #94a3b8; font-size: 12px; }
+    @media (max-width: 650px) {
+        .dl-page { padding: 18px 12px 40px; }
+        .dl-grid { grid-template-columns: 1fr; }
+        .dl-card { padding: 17px; }
+    }
+    [hidden] {
+    display: none !important;
+}
+</style>
+
+<div class="dl-page">
+
+    <!-- HEADER -->
+    <div class="dl-header">
+        <div>
+            <h1>📦 Download Items</h1>
+            <p>Telegram файлууд болон Free / Paid таталтын удирдлага</p>
+        </div>
+        <a href="/dashboard" class="dl-btn dl-btn-secondary" style="text-decoration:none;">← Буцах</a>
+    </div>
+    <div class="dl-field full">
+      <label>Файлын эх сурвалж *</label>
+      <select id="storage_type" name="storage_type">
+          <option value="telegram">📤 Telegram Upload</option>
+          <option value="external">🔗 External Link</option>
+      </select>
+    </div>
+  
+      <div class="dl-field full" id="externalLinkField" hidden>
+          <label>External Download URL *</label>
+          <input type="url" id="external_url" name="external_url"
+                placeholder="https://www.mediafire.com/file/..."
+                disabled>
+      </div>
+    <!-- UPLOAD FORM -->
+    <div class="dl-card">
+        <h2>⬆️ Шинэ файл бүртгэх</h2>
+
+        <form id="downloadItemForm" enctype="multipart/form-data">
+            <div class="dl-grid">
+
+                <div class="dl-field full">
+                    <label for="title">Item нэр *</label>
+                    <input type="text" id="title" name="title" maxlength="200" required placeholder="Premium Software">
+                </div>
+
+                <div class="dl-field full">
+                    <label for="description">Тайлбар</label>
+                    <textarea id="description" name="description" placeholder="Файлын тухай мэдээлэл..."></textarea>
+                </div>
+                <div class="dl-field">
+                  <label for="category">Category *</label>
+                  <select id="category" name="category" required>
+                      <option value="game">🎮 Game</option>
+                      <option value="software">💻 Software</option>
+                      <option value="application">📱 Application</option>
+                      <option value="document">📄 Document</option>
+                      <option value="ebook">📚 E-book</option>
+                      <option value="other">📦 Other</option>
+                  </select>
+              </div>
+              
+              <div class="dl-field full">
+                  <label for="cover">Cover зураг</label>
+                  <input type="file" id="cover" name="cover"
+                         accept="image/jpeg,image/png,image/webp">
+                  <img id="coverPreview" alt="Cover preview"
+                       style="display:none;width:150px;height:190px;object-fit:cover;border-radius:12px;margin-top:12px;">
+              </div>
+                <div class="dl-field">
+                    <label for="access_type">Таталтын төрөл</label>
+                    <select id="access_type" name="access_type">
+                        <option value="free">Free — Үнэгүй</option>
+                        <option value="paid">Paid — Төлбөртэй</option>
+                    </select>
+                </div>
+
+                <div class="dl-field" id="priceField" hidden>
+                    <label for="price">Үнэ (₮)</label>
+                    <input type="number" id="price" name="price" min="1" step="1" value="0" disabled>
+                </div>
+
+                <div class="dl-field full" id="telegramFileField">
+                  <label>Файл сонгох *</label>
+                  <div class="dl-upload-box">
+                      <input type="file" id="file" name="file" required>
+                      <div class="dl-file-info" id="fileInfo">
+                          ZIP, RAR, PDF, MP4 болон бусад файл
+                      </div>
+                  </div>
+              </div>
+            </div>
+
+            <div style="text-align:right;">
+                <button type="submit" class="dl-btn" id="uploadButton">⬆️ Upload & Save</button>
+            </div>
+
+            <div class="dl-progress" id="uploadProgress">
+                <div class="dl-progress-track">
+                    <div class="dl-progress-fill" id="progressFill"></div>
+                </div>
+                <div class="dl-progress-text" id="progressText">Uploading...</div>
+            </div>
+
+            <div class="dl-alert" id="uploadAlert"></div>
+        </form>
+    </div>
+
+    <!-- ITEMS LIST -->
+    <div class="dl-card">
+        <div class="dl-list-header">
+            <div>
+                <h2>📁 Бүртгэсэн файлууд</h2>
+                <span class="dl-muted" id="itemsCount">Ачаалж байна...</span>
+            </div>
+
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <input type="search" id="searchInput" placeholder="Файл хайх...">
+                <button type="button" class="dl-btn dl-btn-secondary" id="refreshButton">⟳</button>
+            </div>
+        </div>
+
+        <div class="dl-alert" id="itemsAlert"></div>
+
+        <div class="dl-table-wrap">
+            <table class="dl-table">
+                <thead>
+                    <tr>
+                        <th>Файл</th>
+                        <th>Хэмжээ</th>
+                        <th>Төрөл / Үнэ</th>
+                        <th>Төлөв</th>
+                        <th>Огноо</th>
+                        <th>Үйлдэл</th>
+                    </tr>
+                </thead>
+                <tbody id="itemsTable">
+                    <tr><td colspan="6" class="dl-empty">Ачаалж байна...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="dl-modal-overlay" id="editModal">
+    <div class="dl-modal">
+        <h2>✏️ Item засах</h2>
+
+        <form id="editForm">
+            <input type="hidden" id="editId">
+
+            <div class="dl-field">
+                <label>Item нэр</label>
+                <input type="text" id="editTitle" maxlength="200" required>
+            </div>
+
+            <div class="dl-field">
+                <label>Тайлбар</label>
+                <textarea id="editDescription"></textarea>
+            </div>
+
+            <div class="dl-grid">
+                <div class="dl-field">
+                    <label>Таталтын төрөл</label>
+                    <select id="editAccessType">
+                        <option value="free">Free</option>
+                        <option value="paid">Paid</option>
+                    </select>
+                </div>
+
+                <div class="dl-field" id="editPriceField">
+                    <label>Үнэ (₮)</label>
+                    <input type="number" id="editPrice" min="1" step="1">
+                </div>
+            </div>
+
+            <div class="dl-field">
+                <label style="display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" id="editPublished" style="width:auto;">
+                    Published — Web дээр нийтлэх
+                </label>
+            </div>
+
+            <div class="dl-alert" id="editAlert"></div>
+
+            <div class="dl-modal-footer">
+                <button type="button" class="dl-btn dl-btn-secondary" id="cancelEdit">Болих</button>
+                <button type="submit" class="dl-btn" id="saveEdit">Хадгалах</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(() => {
+    const API_URL = "/admin/api/download-items";
+    const $ = id => document.getElementById(id);
+
+    let items = [];
+
+    function showAlert(element, message, type = "error") {
+        element.className = "dl-alert " + type;
+        element.textContent = message;
+    }
+
+    function hideAlert(element) {
+        element.className = "dl-alert";
+        element.textContent = "";
+    }
+
+    function formatSize(bytes) {
+        if (bytes == null) return "—";
+        const size = Number(bytes);
+        if (size < 1024 * 1024) return (size / 1024).toFixed(2) + " KB";
+        if (size < 1024 ** 3) return (size / (1024 ** 2)).toFixed(2) + " MB";
+        return (size / (1024 ** 3)).toFixed(2) + " GB";
+    }
+
+    function formatDate(value) {
+        if (!value) return "—";
+        const date = new Date(value);
+        return isNaN(date.getTime()) ? "—" : date.toLocaleDateString("mn-MN");
+    }
+
+    function createElement(tag, content = "", className = "") {
+        const element = document.createElement(tag);
+        element.textContent = content;
+        if (className) element.className = className;
+        return element;
+    }
+
+    async function parseResponse(response) {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.success === false) {
+            throw new Error(data.message || "HTTP " + response.status);
+        }
+        return data;
+    }
+
+    // ============================================
+    // UPLOAD FORM
+    // ============================================
+    function togglePrice() {
+        const paid = $("access_type").value === "paid";
+        $("priceField").hidden = !paid;
+        $("price").disabled = !paid;
+        $("price").required = paid;
+        if (!paid) $("price").value = 0;
+    }
+
+    $("access_type").addEventListener("change", togglePrice);
+    togglePrice();
+
+    $("file").addEventListener("change", () => {
+        const file = $("file").files[0];
+        $("fileInfo").textContent = file
+            ? `${file.name} (${formatSize(file.size)})`
+            : "ZIP, RAR, PDF, MP4 болон бусад файл";
+    });
+
+    $("downloadItemForm").addEventListener("submit", event => {
+        event.preventDefault();
+
+        if (!event.target.reportValidity()) return;
+
+        const button = $("uploadButton");
+        button.disabled = true;
+        button.textContent = "Uploading...";
+
+        hideAlert($("uploadAlert"));
+
+        $("uploadProgress").style.display = "block";
+        $("progressFill").style.width = "0%";
+        $("progressText").textContent = "Файлыг сервер рүү илгээж байна...";
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/admin/api/upload");
+
+        // CSRF ашигладаг бол энд X-CSRFToken header нэмнэ.
+
+        xhr.upload.onprogress = event => {
+            if (!event.lengthComputable) return;
+
+            const percent = Math.round(event.loaded / event.total * 100);
+
+            $("progressFill").style.width = percent + "%";
+            $("progressText").textContent = percent < 100
+                ? `Сервер рүү илгээж байна: ${percent}%`
+                : "Telegram руу upload хийж, MongoDB-д хадгалж байна...";
+        };
+
+        xhr.onload = async () => {
+            let data = {};
+            try { data = JSON.parse(xhr.responseText); } catch (error) {}
+
+            const success = xhr.status >= 200 && xhr.status < 300 && data.success;
+
+            showAlert(
+                $("uploadAlert"),
+                data.message || (success ? "Амжилттай." : "Upload алдаа."),
+                success ? "success" : "error"
+            );
+
+            if (success) {
+                $("downloadItemForm").reset();
+                togglePrice();
+                $("fileInfo").textContent = "ZIP, RAR, PDF, MP4 болон бусад файл";
+                $("progressText").textContent = "Upload амжилттай.";
+                await loadItems();
+            }
+
+            button.disabled = false;
+            button.textContent = "⬆️ Upload & Save";
+        };
+
+        xhr.onerror = () => {
+            showAlert($("uploadAlert"), "Сүлжээний алдаа.");
+            button.disabled = false;
+            button.textContent = "⬆️ Upload & Save";
+        };
+
+        xhr.send(new FormData(event.target));
+    });
+
+    // ============================================
+    // GET ITEMS
+    // ============================================
+    async function loadItems() {
+        try {
+            const response = await fetch(API_URL, {
+                credentials: "same-origin",
+                cache: "no-store"
+            });
+
+            const data = await parseResponse(response);
+            items = data.items || [];
+
+            hideAlert($("itemsAlert"));
+            renderItems();
+        } catch (error) {
+            showAlert($("itemsAlert"), "Файлуудыг авахад алдаа: " + error.message);
+            $("itemsCount").textContent = "Алдаа";
+        }
+    }
+
+    function renderItems() {
+        const tbody = $("itemsTable");
+        tbody.replaceChildren();
+
+        const search = $("searchInput").value.trim().toLowerCase();
+
+        const filtered = items.filter(item =>
+            (item.title || "").toLowerCase().includes(search) ||
+            (item.telegram?.file_name || "").toLowerCase().includes(search)
+        );
+
+        $("itemsCount").textContent = `${filtered.length} / ${items.length} файл`;
+
+        if (!filtered.length) {
+            const row = createElement("tr");
+            const cell = createElement("td", "Бүртгэл олдсонгүй.", "dl-empty");
+            cell.colSpan = 6;
+            row.append(cell);
+            tbody.append(row);
+            return;
+        }
+
+        filtered.forEach(item => {
+            const row = createElement("tr");
+
+            // FILE NAME
+            const fileCell = createElement("td");
+            fileCell.append(
+                createElement("strong", item.title || "—"),
+                createElement("span", item.telegram?.file_name || "—", "dl-filename")
+            );
+            row.append(fileCell);
+
+            // FILE SIZE
+            row.append(createElement("td", formatSize(item.telegram?.file_size)));
+
+            // TYPE AND PRICE
+            const typeCell = createElement("td");
+            const paid = item.access_type === "paid";
+
+            typeCell.append(
+                createElement("span", paid ? "Paid" : "Free", `dl-badge ${paid ? "paid" : "free"}`)
+            );
+
+            if (paid) {
+                typeCell.append(createElement("div", Number(item.price || 0).toLocaleString("en-US") + " ₮"));
+            }
+
+            row.append(typeCell);
+
+            // PUBLISHED STATUS
+            const statusCell = createElement("td");
+            statusCell.append(
+                createElement(
+                    "span",
+                    item.is_published ? "Published" : "Draft",
+                    `dl-badge ${item.is_published ? "published" : "draft"}`
+                )
+            );
+            row.append(statusCell);
+
+            // DATE
+            row.append(createElement("td", formatDate(item.created_at)));
+
+            // ACTIONS
+            const actionCell = createElement("td");
+            const actionGroup = createElement("div", "", "dl-actions");
+
+            const editButton = createElement("button", "✏️ Засах", "dl-btn dl-btn-secondary");
+            editButton.type = "button";
+            editButton.onclick = () => openEdit(item);
+
+            const deleteButton = createElement("button", "🗑 Устгах", "dl-btn dl-btn-danger");
+            deleteButton.type = "button";
+            deleteButton.onclick = () => deleteItem(item);
+
+            actionGroup.append(editButton, deleteButton);
+            actionCell.append(actionGroup);
+            row.append(actionCell);
+
+            tbody.append(row);
+        });
+    }
+
+    // ============================================
+    // EDIT ITEM
+    // ============================================
+    function toggleEditPrice() {
+        const paid = $("editAccessType").value === "paid";
+        $("editPriceField").hidden = !paid;
+        $("editPrice").disabled = !paid;
+        $("editPrice").required = paid;
+        if (!paid) $("editPrice").value = 0;
+    }
+
+    $("editAccessType").addEventListener("change", toggleEditPrice);
+
+    function openEdit(item) {
+        $("editId").value = item._id;
+        $("editTitle").value = item.title || "";
+        $("editDescription").value = item.description || "";
+        $("editAccessType").value = item.access_type === "paid" ? "paid" : "free";
+        $("editPrice").value = item.price || 0;
+        $("editPublished").checked = !!item.is_published;
+
+        hideAlert($("editAlert"));
+        toggleEditPrice();
+
+        $("editModal").classList.add("open");
+    }
+
+    function closeEdit() {
+        $("editModal").classList.remove("open");
+    }
+
+    $("cancelEdit").addEventListener("click", closeEdit);
+
+    $("editModal").addEventListener("click", event => {
+        if (event.target === $("editModal")) closeEdit();
+    });
+
+    document.addEventListener("keydown", event => {
+        if (event.key === "Escape") closeEdit();
+    });
+
+    $("editForm").addEventListener("submit", async event => {
+        event.preventDefault();
+
+        if (!event.target.reportValidity()) return;
+
+        const button = $("saveEdit");
+        button.disabled = true;
+
+        const id = $("editId").value;
+
+        const data = {
+            title: $("editTitle").value.trim(),
+            description: $("editDescription").value.trim(),
+            access_type: $("editAccessType").value,
+            price: $("editAccessType").value === "paid" ? Number($("editPrice").value) : 0,
+            is_published: $("editPublished").checked
+        };
+
+        try {
+            const response = await fetch(`${API_URL}/${encodeURIComponent(id)}`, {
+                method: "PATCH",
+                credentials: "same-origin",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            });
+
+            await parseResponse(response);
+            closeEdit();
+            await loadItems();
+        } catch (error) {
+            showAlert($("editAlert"), error.message);
+        } finally {
+            button.disabled = false;
+        }
+    });
+
+    // ============================================
+    // DELETE ITEM
+    // ============================================
+    async function deleteItem(item) {
+        const confirmed = confirm(
+            `"${item.title}" файлын бүртгэлийг устгах уу?\n\nTelegram channel дахь эх файл устахгүй.`
+        );
+
+        if (!confirmed) return;
+
+        try {
+            const response = await fetch(
+                `${API_URL}/${encodeURIComponent(item._id)}`,
+                {
+                    method: "DELETE",
+                    credentials: "same-origin"
+                }
+            );
+
+            await parseResponse(response);
+            await loadItems();
+        } catch (error) {
+            showAlert($("itemsAlert"), error.message);
+        }
+    }
+
+    // ============================================
+    // EVENTS
+    // ============================================
+    $("searchInput").addEventListener("input", renderItems);
+    $("refreshButton").addEventListener("click", loadItems);
+
+    loadItems();
+})();
+
+document.getElementById("cover").addEventListener("change", (event) => {
+    const file = event.target.files[0];
+    const preview = document.getElementById("coverPreview");
+
+    if (preview.dataset.url) URL.revokeObjectURL(preview.dataset.url);
+
+    preview.style.display = file ? "block" : "none";
+    if (file) {
+        preview.dataset.url = URL.createObjectURL(file);
+        preview.src = preview.dataset.url;
+    } else {
+        preview.removeAttribute("src");
+        delete preview.dataset.url;
+    }
+});
+function toggleStorageType() {
+    const storageType = document.getElementById("storage_type");
+    const telegramField = document.getElementById("telegramFileField");
+    const externalField = document.getElementById("externalLinkField");
+    const fileInput = document.getElementById("file");
+    const urlInput = document.getElementById("external_url");
+
+    if (!storageType || !telegramField || !externalField || !fileInput || !urlInput) {
+        console.error("Storage Type: HTML element олдсонгүй.");
+        return;
+    }
+
+    const isExternal = storageType.value === "external";
+
+    telegramField.hidden = isExternal;
+    externalField.hidden = !isExternal;
+
+    fileInput.required = !isExternal;
+    fileInput.disabled = isExternal;
+
+    urlInput.required = isExternal;
+    urlInput.disabled = !isExternal;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const storageType = document.getElementById("storage_type");
+
+    if (storageType) {
+        storageType.addEventListener("change", toggleStorageType);
+        toggleStorageType();
+    }
+});
+</script>
+{% endblock %}
