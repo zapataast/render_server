@@ -1646,7 +1646,7 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
-@app.post("/playback/ping")
+@app.route("/playback/ping", methods=["POST"])
 def playback_ping():
     user = get_current_user()
     if not user:
@@ -1655,9 +1655,10 @@ def playback_ping():
         {"_id": user["_id"], "playback.token": _get_json().get("t")},
         {"$set": {"playback.last_seen": time.time()}}
     )
+
     return ("", 204) if res.matched_count else ("", 409)
 
-@app.post("/playback/end")
+@app.route("/playback/end", methods=["POST"])
 def playback_end():
     user = get_current_user()
     if not user:
@@ -1672,7 +1673,7 @@ def save_watch_history(user, video):
     anime_id = video.get("anime_id")
     if not anime_id:
         return
-
+    print("⌚⌚⌚⌚ " , anime_id)
     watch_history_collection.update_one(
         {"user_id": user["_id"], "anime_id": anime_id},
         {
@@ -1686,7 +1687,25 @@ def save_watch_history(user, video):
         },
         upsert=True,
     )
+CLEAR_ENDPOINTS = {"home", "anime_detail"}   # өөрийн route-уудын функцийн нэрээр солино
 
+@app.before_request
+def clear_playback_on_navigation():
+    if request.method != "GET":
+        return
+    if request.headers.get("Sec-Fetch-Dest") != "document":
+        return
+    if request.endpoint not in CLEAR_ENDPOINTS:
+        return
+
+    uid = session.get("user_id")
+    if not uid or not ObjectId.is_valid(uid):
+        return
+    print(" 👻👻👻 >> --- > cleared")
+    users_collection.update_one(
+        {"_id": ObjectId(uid), "playback": {"$exists": True}},
+        {"$unset": {"playback": ""}},
+    )
 @app.get("/watch/<video_id>")
 def watch_video(video_id):
     user = get_current_user()
@@ -1703,14 +1722,14 @@ def watch_video(video_id):
     
     if not video:
         abort(404)
-        
+
     save_watch_history(user, video)   
 
     video["id"] = str(video["_id"])
 
     token = secrets.token_urlsafe(24)
     # Өмнөх ангийн сесс энд дарагдаж автоматаар хүчингүй болно
-    users_collection.update_one(
+    r= users_collection.update_one(
         {"_id": user["_id"]},
         {"$set": {"playback": {
             "video_id": str(video["_id"]),
@@ -1719,6 +1738,7 @@ def watch_video(video_id):
             "ua": request.headers.get("User-Agent", ""),
         }}}
     )
+    print("[WATCH] matched", r.matched_count, "modified", r.modified_count, "token", token)
     anime = None
     prev_video = None
     next_video = None
@@ -1772,13 +1792,16 @@ def watch_video(video_id):
 
             if next_video:
                 next_video["id"] = str(next_video["_id"])
-
+    stream_url = url_for("stream_video", video_id=str(video["_id"]), t=token)
     return render_template(
         "watch.html",
         video=video,
         anime=anime,
         prev_video=prev_video,
+        token=token,
         next_video=next_video,
+        stream_url=stream_url,
+        
     )
     
 @app.get("/dashboard")
@@ -2343,9 +2366,11 @@ def stream_video(video_id):
     if not user:
         abort(401)
     pb = user.get("playback") or {}
+    t = request.args.get("t", "")
     # 1) Яг одоо үзэж буй анги мөн эсэх
-    if pb.get("video_id") != video_id:
+    if str(pb.get("video_id")) != str(video_id):
         abort(403)
+
     # 2) Токен таарч байгаа эсэх
     if not secrets.compare_digest(pb.get("token", ""), request.args.get("t", "")):
         abort(403)
@@ -4676,4 +4701,4 @@ def software_detail_page(item_id):
         item=item
     )
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=False)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=True)
