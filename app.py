@@ -5,7 +5,8 @@ from pathlib import Path
 from uuid import uuid4
 from bson.objectid import ObjectId
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify,current_app,Blueprint
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify,current_app,Blueprint,abort
+import secrets, time
 from flask_pymongo import PyMongo
 from werkzeug.utils import secure_filename
 from pymongo.errors import DuplicateKeyError
@@ -84,7 +85,7 @@ DOWNLOAD_CATEGORIES = {
 }
 
 MAX_COVER_SIZE = 5 * 1024 * 1024
-
+ACTIVE_TTL = 90 
 ALLOWED_FILE_EXTENSIONS = {
     ".pdf",
     ".rar",
@@ -189,15 +190,17 @@ def inject_profile_settings():
     }
 mongo = PyMongo(app)
 
-if os.getenv("CLOUDINARY_URL"):
-    cloudinary.config(secure=True)
-else:
-    cloudinary.config(
-        cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
-        api_key=os.getenv("CLOUDINARY_API_KEY"),
-        api_secret=os.getenv("CLOUDINARY_API_SECRET"),
-        secure=True,
-    )
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+    secure=True,
+)
+
+config = cloudinary.config()
+print("CLOUDINARY_URL:", bool(os.getenv("CLOUDINARY_URL")))
+print("API key loaded:", bool(config.api_key))
+print("API secret loaded:", bool(config.api_secret))
 
 ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 def serialize_anime(anime):
@@ -326,6 +329,7 @@ def get_random_video_screenshot(video_path, duration):
         print("Screenshot error:", exc)
 
     return None
+
 def admin_phones():
     raw = os.getenv("ADMIN_PHONES", "85963616,88961331")
     values = set()
@@ -1632,16 +1636,41 @@ def setup_nickname():
         url_for("home")
     )
 
-
+def _get_json():
+    # sendBeacon нь text/plain илгээдэг тул force=True
+    return request.get_json(force=True, silent=True) or {}
 
 @app.get("/logout")
 def logout():
     session.clear()
     return redirect(url_for("login"))
 
+@app.post("/playback/ping")
+def playback_ping():
+    user = get_current_user()
+    if not user:
+        return "", 401
+    res = users_collection.update_one(
+        {"_id": user["_id"], "playback.token": _get_json().get("t")},
+        {"$set": {"playback.last_seen": time.time()}}
+    )
+    return ("", 204) if res.matched_count else ("", 409)
+
+@app.post("/playback/end")
+def playback_end():
+    user = get_current_user()
+    if not user:
+        return "", 204
+    users_collection.update_one(
+        {"_id": user["_id"], "playback.token": _get_json().get("t")},
+        {"$unset": {"playback": ""}}
+    )
+    return "", 204
+
 @app.get("/watch/<video_id>")
 def watch_video(video_id):
-    if not get_current_user():
+    user = get_current_user()
+    if not user:
         return render_template("login.html")
 
     if not ObjectId.is_valid(video_id):
@@ -1651,12 +1680,23 @@ def watch_video(video_id):
         "_id": ObjectId(video_id),
         "is_uploaded": True,
     })
-
+    
     if not video:
         abort(404)
 
     video["id"] = str(video["_id"])
 
+    token = secrets.token_urlsafe(24)
+    # Өмнөх ангийн сесс энд дарагдаж автоматаар хүчингүй болно
+    users_collection.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"playback": {
+            "video_id": str(video["_id"]),
+            "token": token,
+            "last_seen": time.time(),
+            "ua": request.headers.get("User-Agent", ""),
+        }}}
+    )
     anime = None
     prev_video = None
     next_video = None
@@ -1969,6 +2009,7 @@ def upload_video():
                 folder_name="anime_screenshots",
                 quality=75
             )
+            print("🐍 File: render_server/app.py | Line: 1973 | upload_video ~ result",result)
             '''
             result = upload_image_to_cloudinary(
                 avatar_bytes,
@@ -1984,11 +2025,7 @@ def upload_video():
                     **result,
                 }
 
-        if result:
-            cloudinary_screenshots.append({
-                "second": screenshot["second"],
-                **result,
-            })
+
         metadata = {
             "anime_id": anime_id,
             "title": title,
@@ -2280,12 +2317,33 @@ VERCEL_RANGE_SIZE = 8 * 1024 * 1024  # 8 MB
 def stream_video(video_id):
     if not ObjectId.is_valid(video_id):
         abort(404)
+    user = get_current_user()
+    if not user:
+        abort(401)
+    pb = user.get("playback") or {}
+    # 1) Яг одоо үзэж буй анги мөн эсэх
+    if pb.get("video_id") != video_id:
+        abort(403)
+    # 2) Токен таарч байгаа эсэх
+    if not secrets.compare_digest(pb.get("token", ""), request.args.get("t", "")):
+        abort(403)
+
+    # 3) Хуудас нээлттэй байгаа эсэх (heartbeat)
+    if time.time() - pb.get("last_seen", 0) > ACTIVE_TTL:
+        abort(403)
+    # 4) Нэг browser-оос ирсэн эсэх
+    if pb.get("ua") != request.headers.get("User-Agent", ""):
+        abort(403)
+
+    # 5) <video> элементээс ирсэн хүсэлт эсэх (IDM дахин татахдаа энэ header-ийг илгээдэггүй)
+    if request.headers.get("Sec-Fetch-Dest") != "video":
+        abort(403)
 
     video = videos_collection.find_one({
         "_id": ObjectId(video_id),
         "is_uploaded": True,
     })
-
+    
     if not video:
         abort(404)
 
@@ -4596,4 +4654,4 @@ def software_detail_page(item_id):
         item=item
     )
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=True)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=False)

@@ -651,6 +651,24 @@
     });
 
     console.log('[VIDEO DEBUG ENABLED]');
+
+    const PB_TOKEN = "{{ token }}";
+
+  function ping() {
+    fetch("/playback/ping", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({t: PB_TOKEN}),
+      keepalive: true
+    });
+  }
+  ping();
+  setInterval(ping, 20000);
+
+  // Хуудаснаас гарах, өөр анги руу орох үед
+  window.addEventListener("pagehide", () => {
+    navigator.sendBeacon("/playback/end", JSON.stringify({t: PB_TOKEN}));
+  });
 </script>
 
 </body>
