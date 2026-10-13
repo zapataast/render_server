@@ -22,7 +22,7 @@ import random
 import cloudinary.api
 import cloudinary.uploader
 import mimetypes
-import re
+import re,threading
 from datetime import datetime, timedelta,date
 from flask import (
     Response,
@@ -30,6 +30,7 @@ from flask import (
     request,
     stream_with_context,
 )
+
 from pymongo.errors import DuplicateKeyError
 from uploader import (
     telegram_range_stream,
@@ -87,6 +88,10 @@ DOWNLOAD_CATEGORIES = {
 
 MAX_COVER_SIZE = 5 * 1024 * 1024
 ACTIVE_TTL = 90 
+MAX_CONN = 3
+ACTIVE = {}                  # token -> тоо
+ACTIVE_LOCK = threading.Lock()
+
 ALLOWED_FILE_EXTENSIONS = {
     ".pdf",
     ".rar",
@@ -106,7 +111,28 @@ def allowed_upload_file(
         in ALLOWED_FILE_EXTENSIONS
     )
 
+def acquire(token):
+    with ACTIVE_LOCK:
+        print("🎉🎉🎍🎍 | Line: 117 CONN_COUNT",ACTIVE.get(token, 0))
+        if ACTIVE.get(token, 0) >= MAX_CONN:
+            
+            return False
+        ACTIVE[token] = ACTIVE.get(token, 0) + 1
+        return True
 
+def release(token):
+    with ACTIVE_LOCK:
+        n = ACTIVE.get(token, 0) - 1
+        if n <= 0:
+            ACTIVE.pop(token, None)
+        else:
+            ACTIVE[token] = n
+
+def guarded(gen, token):
+    try:
+        yield from gen
+    finally:
+        release(token)   
 def allowed_file(filename):
 
     ext = os.path.splitext(
@@ -1656,7 +1682,9 @@ def playback_ping():
         {"$set": {"playback.last_seen": time.time()}}
     )
 
-    return ("", 204) if res.matched_count else ("", 409)
+    if res.matched_count:
+        return jsonify(reason="ok"), 200
+    return jsonify(reason="stale"), 409
 
 @app.route("/playback/end", methods=["POST"])
 def playback_end():
@@ -1673,7 +1701,7 @@ def save_watch_history(user, video):
     anime_id = video.get("anime_id")
     if not anime_id:
         return
-    print("⌚⌚⌚⌚ " , anime_id)
+   
     watch_history_collection.update_one(
         {"user_id": user["_id"], "anime_id": anime_id},
         {
@@ -1738,7 +1766,7 @@ def watch_video(video_id):
             "ua": request.headers.get("User-Agent", ""),
         }}}
     )
-    print("[WATCH] matched", r.matched_count, "modified", r.modified_count, "token", token)
+
     anime = None
     prev_video = None
     next_video = None
@@ -2366,13 +2394,13 @@ def stream_video(video_id):
     if not user:
         abort(401)
     pb = user.get("playback") or {}
-    t = request.args.get("t", "")
+    tok = request.args.get("t", "")
     # 1) Яг одоо үзэж буй анги мөн эсэх
     if str(pb.get("video_id")) != str(video_id):
         abort(403)
 
     # 2) Токен таарч байгаа эсэх
-    if not secrets.compare_digest(pb.get("token", ""), request.args.get("t", "")):
+    if not secrets.compare_digest(str(pb.get("token", "")).encode(), tok.encode()):
         abort(403)
 
     # 3) Хуудас нээлттэй байгаа эсэх (heartbeat)
@@ -2497,8 +2525,10 @@ def stream_video(video_id):
         headers["Content-Range"] = (
             f"bytes {start}-{end}/{file_size}"
         )
-
-    return Response(
+    if not acquire(tok): 
+        print("[STREAM 429] too many connections", tok[:6]) 
+        return "Too many connections", 429
+    resp = Response(
         stream_with_context(
             telegram_range_stream(
                 channel_id=channel_id,
@@ -2512,8 +2542,10 @@ def stream_video(video_id):
         content_type=mime_type,
         direct_passthrough=True,
     )
+    resp.call_on_close(lambda: release(tok))
+    return resp
 
-
+ ## * END STREAM CODE <<<<<<<<<<<<<<<<<<<<<<<<<<
 TYPE_CHOICES = [
     ("tv", "TV"),
     ("movie", "Movie"),

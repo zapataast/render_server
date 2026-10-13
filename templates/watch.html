@@ -401,11 +401,19 @@
         body: JSON.stringify({t: PB_TOKEN}),
         keepalive: true,
       });
+      console.log("🚀 ~ ping ~ r:", r)
       if (r.status === 409) {
         console.warn("[PING] 409: энэ tab хүчингүй болсон");
+        warn("Энэ хуудас хүчингүй болсон (өөр анги эсвэл өөр цонхон дээр нээгдсэн). Дахин ачаална уу.");
         clearInterval(pingTimer);
         return;
       }
+      if (r.status === 401) {
+
+        warn("Нэвтрэлт дууссан байна. Дахин нэвтэрнэ үү.");
+        return;
+      }
+   
       if (!r.ok) console.warn("[PING] failed", r.status);
     } catch (e) {
       console.warn("[PING] error", e);
