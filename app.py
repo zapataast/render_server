@@ -76,6 +76,7 @@ anime_collection = mongo_db["anime"]
 files_collection = mongo_db["files"]
 home_comments_collection = mongo_db["home_comments"]
 zip_files = mongo_db["zip_files"]
+watch_history_collection = mongo_db['watch_history']
 users_collection = mongo_db.users
 genres_collection = mongo_db.genres
 home_slides_collection = mongo_db.home_slides
@@ -1667,6 +1668,25 @@ def playback_end():
     )
     return "", 204
 
+def save_watch_history(user, video):
+    anime_id = video.get("anime_id")
+    if not anime_id:
+        return
+
+    watch_history_collection.update_one(
+        {"user_id": user["_id"], "anime_id": anime_id},
+        {
+            "$set": {
+                "video_id": video["_id"],
+                "watched_at": time.time(),
+            },
+            "$setOnInsert": {
+                "created_at": datetime.now(timezone.utc),
+            },
+        },
+        upsert=True,
+    )
+
 @app.get("/watch/<video_id>")
 def watch_video(video_id):
     user = get_current_user()
@@ -1683,6 +1703,8 @@ def watch_video(video_id):
     
     if not video:
         abort(404)
+        
+    save_watch_history(user, video)   
 
     video["id"] = str(video["_id"])
 
