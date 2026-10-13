@@ -88,7 +88,7 @@ DOWNLOAD_CATEGORIES = {
 
 MAX_COVER_SIZE = 5 * 1024 * 1024
 ACTIVE_TTL = 90 
-MAX_CONN = 3
+MAX_CONN = 9
 ACTIVE = {}                  # token -> тоо
 ACTIVE_LOCK = threading.Lock()
 
@@ -2401,6 +2401,7 @@ def stream_video(video_id):
 
     # 2) Токен таарч байгаа эсэх
     if not secrets.compare_digest(str(pb.get("token", "")).encode(), tok.encode()):
+        print("❌❌ token invalid")
         abort(403)
 
     # 3) Хуудас нээлттэй байгаа эсэх (heartbeat)
