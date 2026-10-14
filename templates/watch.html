@@ -391,14 +391,14 @@
 <script>
   const PB_TOKEN = "{{ token }}";
   let pingTimer = null;
-
+    const vid = document.getElementById("player");
   async function ping() {
     try {
       const r = await fetch("/playback/ping", {
         method: "POST",
         credentials: "same-origin",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({t: PB_TOKEN}),
+        body: JSON.stringify({t: PB_TOKEN, ct: vid.currentTime, p: vid.paused}),
         keepalive: true,
       });
       console.log("🚀 ~ ping ~ r:", r)
@@ -421,7 +421,9 @@
   }
 
   ping();
-  pingTimer = setInterval(ping, 20000);
+  pingTimer = setInterval(ping, 15000);
+
+  ["seeking", "seeked", "play", "pause"].forEach(ev => vid.addEventListener(ev, ping));
 
   window.addEventListener("pagehide", () => {
     navigator.sendBeacon("/playback/end", JSON.stringify({t: PB_TOKEN}));

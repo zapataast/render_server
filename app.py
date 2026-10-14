@@ -87,10 +87,39 @@ DOWNLOAD_CATEGORIES = {
 }
 
 MAX_COVER_SIZE = 5 * 1024 * 1024
-ACTIVE_TTL = 90 
-MAX_CONN = 9
-ACTIVE = {}                  # token -> тоо
-ACTIVE_LOCK = threading.Lock()
+VERCEL_RANGE_SIZE = 6 * 1024 * 1024  # 8 MB TELEGRAM butsaah hemjee 1 udaagiin
+ACTIVE_TTL = 90  # секунд. ping ирэхгүй бол сесс дууссанд тооцно
+        
+AHEAD = 400          # секунд: одоогийн байрлалаас урагш зөвшөөрөх хэмжээ
+BEHIND = 600         # секунд: буцаж үзэх зөвшөөрөл
+HEAD = 3 * 1024 * 1024
+TAIL = 8 * 1024 * 1024
+STRIKE_LIMIT = 4
+STRIKES = {}         # token -> [цагууд]
+from collections import deque
+
+WINDOW = 10          # секунд
+MAX_REQ = 4          # цонх дотор зөвшөөрөх хүсэлт
+REQS = {}            # token -> deque(цагууд)
+REQS_LOCK = threading.Lock()
+
+def check_rate(token):
+    """True = зөвшөөрнө, False = 5 дахь хүсэлт (strike)"""
+    now = time.time()
+    with REQS_LOCK:
+        q = REQS.setdefault(token, deque())
+        while q and now - q[0] > WINDOW:
+            q.popleft()
+        q.append(now)
+        return len(q) <= MAX_REQ
+
+def revoke_token(token):
+    REQS.pop(token, None)
+    users_collection.update_one(
+        {"playback.token": token},
+        {"$unset": {"playback": ""}},
+    )
+
 
 ALLOWED_FILE_EXTENSIONS = {
     ".pdf",
@@ -111,28 +140,7 @@ def allowed_upload_file(
         in ALLOWED_FILE_EXTENSIONS
     )
 
-def acquire(token):
-    with ACTIVE_LOCK:
-        print("🎉🎉🎍🎍 | Line: 117 CONN_COUNT",ACTIVE.get(token, 0))
-        if ACTIVE.get(token, 0) >= MAX_CONN:
-            
-            return False
-        ACTIVE[token] = ACTIVE.get(token, 0) + 1
-        return True
 
-def release(token):
-    with ACTIVE_LOCK:
-        n = ACTIVE.get(token, 0) - 1
-        if n <= 0:
-            ACTIVE.pop(token, None)
-        else:
-            ACTIVE[token] = n
-
-def guarded(gen, token):
-    try:
-        yield from gen
-    finally:
-        release(token)   
 def allowed_file(filename):
 
     ext = os.path.splitext(
@@ -1677,14 +1685,20 @@ def playback_ping():
     user = get_current_user()
     if not user:
         return "", 401
+    d = _get_json()
+    now = time.time()
+    ct = float(d.get("ct") or 0)
     res = users_collection.update_one(
-        {"_id": user["_id"], "playback.token": _get_json().get("t")},
-        {"$set": {"playback.last_seen": time.time()}}
+        {"_id": user["_id"], "playback.token": d.get("t")},
+        {"$set": {
+            "playback.last_seen": now,
+            "playback.pos": float(d.get("ct") or 0),
+            "playback.pos_at": now,
+            "playback.paused": bool(d.get("p", True)),
+        }},
     )
-
-    if res.matched_count:
-        return jsonify(reason="ok"), 200
-    return jsonify(reason="stale"), 409
+    print(f"[PING] ct={ct:.1f}s paused={d.get('p')} matched={res.matched_count}")       
+    return ("", 204) if res.matched_count else ("", 409)
 
 @app.route("/playback/end", methods=["POST"])
 def playback_end():
@@ -2384,7 +2398,24 @@ def anime_detail(anime_id):
         return render_template(
             "login.html"
         )
-VERCEL_RANGE_SIZE = 8 * 1024 * 1024  # 8 MB
+def position_ok(user_id, start, file_size, duration):
+    bitrate = file_size / duration
+    req_sec = start / bitrate
+    pos = 0
+    for i in range(6):
+        u = users_collection.find_one({"_id": user_id}, {"playback": 1})
+        p = (u or {}).get("playback") or {}
+        pos = p.get("pos", 0)
+        if not p.get("paused", True):
+            pos += time.time() - p.get("pos_at", time.time())
+        ok = pos - BEHIND <= req_sec <= pos + AHEAD
+        print(f"[POS CHECK] try={i} req={req_sec:.1f}s pos={pos:.1f}s "
+              f"range=[{pos - BEHIND:.1f}, {pos + AHEAD:.1f}] ok={ok}")
+        if ok:
+            return True
+        time.sleep(0.5)
+    return False
+
 @app.get("/stream/<video_id>")
 @login_required
 def stream_video(video_id):
@@ -2493,8 +2524,21 @@ def stream_video(video_id):
 
         status = 206
     content_length = end - start + 1
-    duration = float(video.get("duration") or 0)
 
+   
+    duration = float(video.get("duration") or 0)
+    if duration > 0 and HEAD < start < file_size - TAIL:
+        if not position_ok(user["_id"], start, file_size, duration):
+            now = time.time()
+            h = [t for t in STRIKES.get(tok, []) if now - t < 30] + [now]
+            STRIKES[tok] = h
+
+            print("[STREAM OUT_OF_POSITION]", tok[:6], f"start={start:,} req={start / (file_size / duration):.1f}s strikes={len(h)}")
+            if len(h) >= STRIKE_LIMIT:
+                STRIKES.pop(tok, None)
+                users_collection.update_one({"_id": user["_id"]}, {"$unset": {"playback": ""}})
+                return jsonify(error="revoked"), 403
+            return jsonify(error="out_of_position"), 403
     if duration > 0:
         bytes_per_second = file_size / duration
         range_seconds = content_length / bytes_per_second
@@ -2526,10 +2570,12 @@ def stream_video(video_id):
         headers["Content-Range"] = (
             f"bytes {start}-{end}/{file_size}"
         )
-    if not acquire(tok): 
-        print("[STREAM 429] too many connections", tok[:6]) 
-        return "Too many connections", 429
-    resp = Response(
+    if not check_rate(tok):
+        print("[STREAM BLOCK] rate", tok[:6])
+        revoke_token(tok)
+        return jsonify(error="revoked"), 403
+
+    return Response(
         stream_with_context(
             telegram_range_stream(
                 channel_id=channel_id,
@@ -2543,8 +2589,6 @@ def stream_video(video_id):
         content_type=mime_type,
         direct_passthrough=True,
     )
-    resp.call_on_close(lambda: release(tok))
-    return resp
 
  ## * END STREAM CODE <<<<<<<<<<<<<<<<<<<<<<<<<<
 TYPE_CHOICES = [
