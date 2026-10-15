@@ -54,6 +54,64 @@ def build_telegram_client():
         api_id,
         api_hash,
     )
+
+_loop = None
+_client = None
+_init_error = None
+_ready = threading.Event()
+_start_lock = threading.Lock()
+_started = False
+
+
+def _loop_worker():
+    global _loop, _client, _init_error
+
+    _loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(_loop)
+
+    try:
+        _client = _build_client()  # TELEGRAM_SESSION-тэй хувилбар
+
+        async def _init():
+            await _client.connect()
+            if not await _client.is_user_authorized():
+                raise RuntimeError("Telegram session authorized биш байна.")
+
+        _loop.run_until_complete(_init())
+    except Exception as e:
+        _init_error = e
+        _ready.set()
+        return
+
+    _ready.set()
+    _loop.run_forever()
+
+
+def ensure_started():
+    global _started
+
+    with _start_lock:
+        if not _started:
+            threading.Thread(
+                target=_loop_worker,
+                name="telegram-loop",
+                daemon=True,
+            ).start()
+            _started = True
+
+    _ready.wait(timeout=30)
+
+    if _init_error:
+        raise _init_error
+    if _client is None:
+        raise RuntimeError("Telegram client эхлээгүй байна.")
+
+
+def run_tg(coro, timeout=60):
+    """Sync кодоос background loop дээр coroutine ажиллуулна."""
+    ensure_started()
+    return asyncio.run_coroutine_threadsafe(coro, _loop).result(timeout)
+
 CHANNEL_CACHE = {}
 def _cache_get(cache, key):
     now = time.time()
@@ -187,132 +245,77 @@ async def get_telegram_message(
     MESSAGE_CACHE[key] = message
 
     return message
+async def get_cached_telegram_media(client, channel, channel_id, message_id):
+    key = (int(channel_id), int(message_id))
 
+    media = _cache_get(_telegram_message_cache, key)
+    if media is not None:
+        return media
+
+    message = await client.get_messages(channel, ids=int(message_id))
+
+    if not message or not message.media:
+        raise RuntimeError("Telegram video олдсонгүй.")
+
+    _cache_set(_telegram_message_cache, key, message.media)
+    return message.media
 def telegram_range_stream(channel_id, message_id, start, end):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    ensure_started()
+    client = _client
 
-    client = build_telegram_client()
+    start = int(start)
+    end = int(end)
+    remaining = end - start + 1
+
+    if remaining <= 0:
+        return
+
     iterator = None
 
     try:
-        # =====================================================
-        # CONNECT
-        # =====================================================
-        loop.run_until_complete(
-            client.connect()
+        channel = run_tg(get_cached_telegram_channel(client, channel_id))
+        media = run_tg(
+            get_cached_telegram_media(client, channel, channel_id, message_id)
         )
 
-        authorized = loop.run_until_complete(
-            client.is_user_authorized()
-        )
-
-        if not authorized:
-            raise RuntimeError(
-                "Telegram session authorized биш байна."
-            )
-
-        # =====================================================
-        # CHANNEL
-        # CACHE HIT үед Telegram request явахгүй.
-        # =====================================================
-        channel = loop.run_until_complete(
-            get_cached_telegram_channel(
-                client,
-                channel_id,
-            )
-        )
-
-        if channel is None:
-            raise RuntimeError(
-                f"Telegram channel олдсонгүй: {channel_id}"
-            )
-
-        # =====================================================
-        # MESSAGE
-        # CACHE HIT үед get_messages дахиж дуудагдахгүй.
-        # =====================================================
-        message = loop.run_until_complete(
-            get_cached_telegram_message(
-                client,
-                channel,
-                channel_id,
-                message_id,
-            )
-        )
-
-        if not message:
-            raise RuntimeError(
-                f"Telegram message олдсонгүй: {message_id}"
-            )
-
-        if not message.media:
-            raise RuntimeError(
-                "Telegram message дээр media байхгүй."
-            )
-
-        # =====================================================
-        # RANGE
-        # =====================================================
-        start = int(start)
-        end = int(end)
-
-        remaining = end - start + 1
-
-        if remaining <= 0:
-            return
-
-        # =====================================================
-        # TELEGRAM OFFSET ALIGN
-        # =====================================================
-        aligned_start = (
-            start // TELEGRAM_CHUNK_SIZE
-        ) * TELEGRAM_CHUNK_SIZE
-
+        aligned_start = (start // TELEGRAM_CHUNK_SIZE) * TELEGRAM_CHUNK_SIZE
         skip_bytes = start - aligned_start
 
-        # =====================================================
-        # DOWNLOAD
-        # =====================================================
-        iterator = client.iter_download(
-            message.media,
-            offset=aligned_start,
-            request_size=TELEGRAM_CHUNK_SIZE,
-            chunk_size=TELEGRAM_CHUNK_SIZE,
-        )
+        async def _open():
+            it = client.iter_download(
+                media,
+                offset=aligned_start,
+                request_size=TELEGRAM_CHUNK_SIZE,
+            )
+            return it, it.__aiter__()
 
-        async_iterator = iterator.__aiter__()
-        started_at = time.time()
-        sent_bytes = 0
-        last_log_at = started_at
-        while remaining > 0:
+        iterator, ait = run_tg(_open())
+
+        async def _next():
             try:
-                chunk = loop.run_until_complete(
-                    async_iterator.__anext__()
-                )
-
+                return await ait.__anext__()
             except StopAsyncIteration:
-                break
+                return None
+
+        started_at = time.time()
+        last_log_at = started_at
+        sent_bytes = 0
+
+        while remaining > 0:
+            chunk = run_tg(_next(), timeout=30)
 
             if not chunk:
                 break
 
             chunk = bytes(chunk)
 
-            # =================================================
-            # ALIGN-аас үүссэн эхний илүү хэсгийг хаяна.
-            # =================================================
             if skip_bytes > 0:
                 if skip_bytes >= len(chunk):
                     skip_bytes -= len(chunk)
                     continue
-
                 chunk = chunk[skip_bytes:]
                 skip_bytes = 0
 
-            # =================================================
-            # Browser-ийн хүссэн range-ээс хэтрүүлэхгүй.
-            # =================================================
             if len(chunk) > remaining:
                 chunk = chunk[:remaining]
 
@@ -325,69 +328,36 @@ def telegram_range_stream(channel_id, message_id, start, end):
             now = time.time()
             if now - last_log_at >= 2:
                 elapsed = now - started_at
-                speed = sent_bytes / elapsed
-
                 print(
-                    f"[TELEGRAM STREAM] "
-                    f"sent={sent_bytes / 1024 / 1024:.2f} MB | "
-                    f"speed={speed / 1024:.2f} KB/s | "
-                    f"elapsed={elapsed:.1f}s"
+                    f"[TELEGRAM STREAM] sent={sent_bytes/1024/1024:.2f} MB | "
+                    f"speed={sent_bytes/elapsed/1024:.2f} KB/s"
                 )
-
                 last_log_at = now
+
             yield chunk
 
     except GeneratorExit:
         return
 
     except Exception:
-        # Media reference асуудал гарсан байж болох учраас
-        # тухайн message cache-ийг invalidate хийнэ.
+        # file reference хуучирсан байж болно
         _cache_delete(
             _telegram_message_cache,
-            (
-                int(channel_id),
-                int(message_id),
-            ),
+            (int(channel_id), int(message_id)),
         )
-
         raise
 
     finally:
-        # =====================================================
-        # ITERATOR CLOSE
-        # =====================================================
+        # client-ийг disconnect ХИЙХГҮЙ, зөвхөн iterator-ийг хаана
         if iterator is not None:
+            async def _close():
+                r = iterator.close()
+                if asyncio.iscoroutine(r):
+                    await r
             try:
-                result = iterator.close()
-
-                if asyncio.iscoroutine(result):
-                    loop.run_until_complete(result)
-
+                run_tg(_close(), timeout=10)
             except Exception:
                 pass
-
-        # =====================================================
-        # CLIENT DISCONNECT
-        # =====================================================
-        try:
-            if client.is_connected():
-                result = client.disconnect()
-
-                if asyncio.iscoroutine(result):
-                    loop.run_until_complete(result)
-
-        except Exception:
-            pass
-
-        # =====================================================
-        # LOOP CLOSE
-        # =====================================================
-        try:
-            loop.close()
-        except Exception:
-            pass
-
 
 async def upload_file_to_telegram(
     file_path,
@@ -406,7 +376,7 @@ async def upload_file_to_telegram(
         )
     )
 
-    client = _build_client()
+    client = _client()
 
     await client.connect()
 
@@ -455,7 +425,7 @@ async def upload_video_to_telegram(file_path, caption="", is_video=True):
         raise FileNotFoundError(f"File not found: {file_path}")
 
     channel_id = int(_required_env("TELEGRAM_CHANNEL_ID"))
-    client = _build_client()
+    client = _client
 
     await client.connect()
     try:

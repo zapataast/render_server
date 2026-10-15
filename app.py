@@ -1985,7 +1985,7 @@ def remove_profile_image():
 VIDEO_EXTENSIONS = {"mp4", "mkv", "webm", "mov", "avi", "m4v"}
 
 
-def save_video_metadata_to_django(payload):
+def save_video_metadata_to_django_onrender(payload):
     base_url = os.getenv("DJANGO_API_URL", "").strip()
     if not base_url:
         return {
@@ -2125,12 +2125,12 @@ def upload_video():
             "screenshot": cloudinary_screenshot,
             "is_uploaded": True,
         }
-        #djang = send_video_info_to_django(metadata)
+
         djang = send_video_info_to_mongodb(metadata,videos_collection)
         print("✔️✔️✔️✔️✔️✔️✔️✔️✔️✔️✔️✔️✔️✔️✔️✔️")
         print("SUCCESSFULLY UPLOADED",djang , ' ' ,title )
         print("▶️▶️▶️▶️▶️▶️▶️▶️▶️▶️▶️▶️▶️▶️▶️▶️")
-        #django_result = save_video_metadata_to_django(metadata)
+        
 
         return jsonify({
             "ok": True,
@@ -2169,23 +2169,9 @@ def file_too_large(_):
     flash(f"Файл хэт том байна. Max {MAX_UPLOAD_MB}MB.", "danger")
     return redirect(request.referrer or url_for("dashboard"))
 
-def get_django_base_url():
-    url = os.environ.get("DJANGO_API_URL", "").strip()
-    if not url:
-        raise RuntimeError("DJANGO_API_URL тохируулаагүй байна.")
-    return url.rstrip("/")
 
 
-def fetch_anime_with_videos():
-    base_url = get_django_base_url()
-    url = f"{base_url}/api/public/anime-with-videos/"
 
-    response = requests.get(url, timeout=30)
-    response.raise_for_status()
-
-    data = response.json()
-
-    return data.get("results", [])
 
 @app.route("/")
 def home():
