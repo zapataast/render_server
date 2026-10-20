@@ -14,7 +14,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone
 import requests
 from pymongo import MongoClient, ReturnDocument
-from uploader import upload_video_to_telegram,upload_file_to_telegram
+from uploader import *
 import io
 import cloudinary
 from PIL import Image, ImageOps
@@ -1713,6 +1713,7 @@ def playback_end():
 
 def save_watch_history(user, video):
     anime_id = video.get("anime_id")
+    print("🐍 File: render_server/app.py | Line: 1716 | save_watch_history ~ anime_id",anime_id)
     if not anime_id:
         return
    
@@ -1722,6 +1723,7 @@ def save_watch_history(user, video):
             "$set": {
                 "video_id": video["_id"],
                 "watched_at": time.time(),
+                "name" : video["title"]
             },
             "$setOnInsert": {
                 "created_at": datetime.now(timezone.utc),
@@ -1729,6 +1731,7 @@ def save_watch_history(user, video):
         },
         upsert=True,
     )
+    print("🐍 File: render_server/app.py | Line: 1734 | save_watch_history ~ datetime.now(timezone.utc)",datetime.now(timezone.utc))
 CLEAR_ENDPOINTS = {"home", "anime_detail"}   # өөрийн route-уудын функцийн нэрээр солино
 
 @app.before_request
@@ -2082,9 +2085,7 @@ def upload_video():
         print("🐍 File: render_server/app.py | Line: 515 | upload_video ~ duration",duration)
         caption = title + (f" - EP {episode_number}" if episode_number is not None else "")
 
-        telegram_result = asyncio.run(
-            upload_video_to_telegram(temp_path, caption=caption)
-        )
+        telegram_result = upload_video_to_telegram_sync(temp_path, caption=caption)
         cloudinary_screenshots = []
         screenshot = get_random_video_screenshot(temp_path, duration)
 
@@ -4764,4 +4765,4 @@ def software_detail_page(item_id):
         item=item
     )
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=False)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=True)

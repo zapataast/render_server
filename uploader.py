@@ -33,27 +33,35 @@ def _build_client():
 
     return TelegramClient(session, api_id, api_hash)
 
-def build_telegram_client():
-    api_id = int(
-        os.environ["TELEGRAM_API_ID"]
+async def _upload(file_path, caption, supports_streaming, force_document):
+    path = Path(file_path)
+    if not path.exists():
+        raise FileNotFoundError(f"File not found: {file_path}")
+
+    channel_id = int(_required_env("TELEGRAM_CHANNEL_ID"))
+
+    message = await _client.send_file(
+        channel_id,
+        str(path),
+        caption=caption,
+        supports_streaming=supports_streaming,
+        force_document=force_document,
     )
 
-    api_hash = os.environ[
-        "TELEGRAM_API_HASH"
-    ]
+    return {
+        "success": True,
+        "channel_id": channel_id,
+        "message_id": message.id,
+        "file_name": message.file.name if message.file else path.name,
+        "file_size": message.file.size if message.file else path.stat().st_size,
+    }
 
-    session_string = (
-        os.environ["TELEGRAM_SESSION"]
-        .strip()
+def upload_video_to_telegram_sync(file_path, caption="", is_video=True):
+    return run_tg(
+        _upload(file_path, caption, is_video, not is_video),
+        timeout=3600,
     )
 
-    return TelegramClient(
-        StringSession(
-            session_string
-        ),
-        api_id,
-        api_hash,
-    )
 
 _loop = None
 _client = None
@@ -112,7 +120,7 @@ def run_tg(coro, timeout=60):
     ensure_started()
     return asyncio.run_coroutine_threadsafe(coro, _loop).result(timeout)
 
-CHANNEL_CACHE = {}
+
 def _cache_get(cache, key):
     now = time.time()
 
@@ -162,60 +170,16 @@ async def get_cached_telegram_channel(client, channel_id):
 
     return channel
 
-async def get_cached_telegram_message(
-    client,
-    channel,
-    channel_id,
-    message_id,
-):
-    cache_key = (
-        int(channel_id),
-        int(message_id),
-    )
-
-    message = _cache_get(
-        _telegram_message_cache,
-        cache_key,
-    )
-
-    if message is not None:
-        return message
-
-    message = await get_telegram_message(
-        client,
-        channel,
-        channel_id,
-        message_id,
-    )
-
-    if message is not None:
-        _cache_set(
-            _telegram_message_cache,
-            cache_key,
-            message,
-        )
-
-    return message
 
 def _cache_delete(cache, key):
     with _telegram_cache_lock:
         cache.pop(key, None)
 async def resolve_channel(client, channel_id):
-    if channel_id in CHANNEL_CACHE:
-        return CHANNEL_CACHE[channel_id]
-
-    dialogs = await client.get_dialogs()
-
-    for dialog in dialogs:
-        if dialog.id == int(channel_id):
-            CHANNEL_CACHE[channel_id] = dialog.entity
+    target = int(channel_id)
+    async for dialog in client.iter_dialogs():
+        if dialog.id == target:
             return dialog.entity
-
-    raise RuntimeError(
-        f"Telegram channel олдсонгүй: {channel_id}"
-    )
-
-MESSAGE_CACHE = {}
+    raise RuntimeError(f"Telegram channel олдсонгүй: {channel_id}")
 
 
 async def get_telegram_message(
