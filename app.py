@@ -87,11 +87,11 @@ DOWNLOAD_CATEGORIES = {
 }
 
 MAX_COVER_SIZE = 5 * 1024 * 1024
-VERCEL_RANGE_SIZE = 6 * 1024 * 1024  # 8 MB TELEGRAM butsaah hemjee 1 udaagiin
+VERCEL_RANGE_SIZE = 10 * 1024 * 1024  # 8 MB TELEGRAM butsaah hemjee 1 udaagiin
 ACTIVE_TTL = 90  # секунд. ping ирэхгүй бол сесс дууссанд тооцно
         
 AHEAD = 400          # секунд: одоогийн байрлалаас урагш зөвшөөрөх хэмжээ
-BEHIND = 600         # секунд: буцаж үзэх зөвшөөрөл
+BEHIND = 400         # секунд: буцаж үзэх зөвшөөрөл
 HEAD = 3 * 1024 * 1024
 TAIL = 8 * 1024 * 1024
 STRIKE_LIMIT = 4
@@ -248,7 +248,11 @@ def serialize_anime(anime):
         "name": anime.get("name", ""),
         "description": anime.get("description", ""),
         "active": anime.get("active", True),
-
+        "name_mn": anime.get("name_mn", ""),
+        "related_anime_ids": [
+            str(value)
+            for value in anime.get("related_anime_ids", [])
+        ],
         "anime_type": anime.get("anime_type", "tv"),
         "episodes": anime.get("episodes"),
 
@@ -2413,8 +2417,9 @@ def stream_video(video_id):
         abort(401)
     pb = user.get("playback") or {}
     tok = request.args.get("t", "")
-    # 1) Яг одоо үзэж буй анги мөн эсэх
+
     if str(pb.get("video_id")) != str(video_id):
+        print("❌❌ Яг одоо үзэж буй анги мөн эсэх")
         abort(403)
 
     # 2) Токен таарч байгаа эсэх
@@ -2424,13 +2429,14 @@ def stream_video(video_id):
 
     # 3) Хуудас нээлттэй байгаа эсэх (heartbeat)
     if time.time() - pb.get("last_seen", 0) > ACTIVE_TTL:
+        print("❌❌ Хуудас нээлттэй биш байна")
         abort(403)
-    # 4) Нэг browser-оос ирсэн эсэх
     if pb.get("ua") != request.headers.get("User-Agent", ""):
+        print("❌❌ Нэг browser-оос ирсэн эсэх")
         abort(403)
 
-    # 5) <video> элементээс ирсэн хүсэлт эсэх (IDM дахин татахдаа энэ header-ийг илгээдэггүй)
     if request.headers.get("Sec-Fetch-Dest") != "video":
+        print("❌❌ <video> элементээс ирсэн хүсэлт эсэх")
         abort(403)
 
     video = videos_collection.find_one({
@@ -2739,7 +2745,41 @@ def anime_create_page():
         genres=genres,
     )
 
+def prepare_related_anime_ids(values, current_id=None):
+    if not isinstance(values, list):
+        raise ValueError("related_anime_ids нь жагсаалт байх ёстой.")
 
+    result = []
+    seen = set()
+    current_id = str(current_id) if current_id else None
+
+    for value in values:
+        value = str(value).strip()
+
+        if not ObjectId.is_valid(value):
+            raise ValueError(f"Anime ID буруу байна: {value}")
+
+        value = str(ObjectId(value))
+
+        if value == current_id or value in seen:
+            continue
+
+        seen.add(value)
+        result.append(value)
+
+    if result:
+        existing_ids = {
+            str(item["_id"])
+            for item in anime_collection.find(
+                {"_id": {"$in": [ObjectId(value) for value in result]}},
+                {"_id": 1},
+            )
+        }
+
+        if any(value not in existing_ids for value in result):
+            raise ValueError("Сонгосон холбоотой анимэ олдсонгүй.")
+
+    return result
 @app.route(
     "/api/admin/anime/create",
     methods=["POST"],
@@ -2777,7 +2817,7 @@ def api_anime_create():
         anime_data = {
 
             "name": name,
-
+            "name_mn": (data.get("name_mn") or "").strip(),
             "description": (
                 data.get("description") or ""
             ).strip(),
@@ -2790,7 +2830,9 @@ def api_anime_create():
                 "anime_type",
                 "tv"
             ),
-
+            "related_anime_ids" : prepare_related_anime_ids(
+                data.get("related_anime_ids", [])
+            ),
             "episodes": episodes,
 
             "status": data.get(
@@ -2926,13 +2968,17 @@ def api_anime_update(anime_id):
                     "Old image delete error:",
                     image_error
                 )
-
+        print(">>>> " , data.get("related_anime_ids"))
         update_data = {
 
             "name": (
                 data.get("name") or ""
             ).strip(),
-
+            "name_mn": data.get("name_mn", ""),
+            "related_anime_ids": [
+                str(value)
+                for value in data.get("related_anime_ids", [])
+            ],
             "description": (
                 data.get("description") or ""
             ).strip(),
@@ -2952,8 +2998,7 @@ def api_anime_update(anime_id):
                 "status",
                 "finished"
             ),  
-            "genre_ids":
-            genre_ids,
+            "genre_ids": genre_ids,
             "aired_from": parse_date(
                 data.get("aired_from")
             ),
@@ -2991,7 +3036,7 @@ def api_anime_update(anime_id):
             "updated_at":
                 datetime.now(timezone.utc),
         }
-
+               
         anime_collection.update_one(
             {
                 "_id": ObjectId(anime_id)
@@ -4765,4 +4810,4 @@ def software_detail_page(item_id):
         item=item
     )
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5002)), debug=True)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5004)), debug=False)

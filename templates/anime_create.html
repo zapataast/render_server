@@ -1,49 +1,30 @@
 <!DOCTYPE html>
 <html lang="mn">
-
 <head>
-
     <meta charset="UTF-8">
-
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
     >
-
     <title>Anime Admin</title>
-
     <script src="https://cdn.tailwindcss.com"></script>
-
 </head>
-
-
 <body class="bg-slate-100 text-slate-800">
-
-
 <div class="max-w-7xl mx-auto px-4 py-8">
-
-
     <!-- ================================================= -->
     <!-- HEADER -->
     <!-- ================================================= -->
-
     <div class="mb-6">
-
         <h1 class="text-3xl font-bold">
             Anime бүртгэл
         </h1>
-
         <p class="text-slate-500 mt-1">
             Anime нэмэх, засах, устгах
         </p>
-
     </div>
-
-
     <!-- ================================================= -->
     <!-- FORM -->
     <!-- ================================================= -->
-
     <div
         class="
             bg-white
@@ -54,28 +35,22 @@
             p-6
         "
     >
-
         <form
             id="anime-form"
             class="space-y-6"
         >
-
             <input
                 type="hidden"
                 id="anime-id"
             >
-
             <input
                 type="hidden"
                 id="image-url"
             >
-
             <input
                 type="hidden"
                 id="image-public-id"
             >
-
-
             <div
                 class="
                     grid
@@ -84,14 +59,10 @@
                     gap-7
                 "
             >
-
-
                 <!-- ===================================== -->
                 <!-- POSTER -->
                 <!-- ===================================== -->
-
                 <div>
-
                     <label
                         class="
                             block
@@ -102,11 +73,8 @@
                     >
                         Poster зураг
                     </label>
-
-
                     <div
                         id="image-drop-zone"
-
                         class="
                             relative
                             min-h-[350px]
@@ -125,16 +93,12 @@
                             justify-center
                         "
                     >
-
-
                         <input
                             id="image-input"
                             type="file"
                             accept="image/*"
                             class="hidden"
                         >
-
-
                         <div
                             id="image-placeholder"
                             class="
@@ -143,15 +107,12 @@
                                 pointer-events-none
                             "
                         >
-
                             <div class="text-4xl mb-3">
                                 🖼️
                             </div>
-
                             <p class="font-semibold">
                                 Зургаа энд чирж оруулна уу
                             </p>
-
                             <p
                                 class="
                                     text-sm
@@ -161,10 +122,7 @@
                             >
                                 эсвэл дарж зураг сонгоно
                             </p>
-
                         </div>
-
-
                         <img
                             id="image-preview"
                             src=""
@@ -178,11 +136,8 @@
                                 object-cover
                             "
                         >
-
-
                         <div
                             id="image-loading"
-
                             class="
                                 hidden
                                 absolute
@@ -196,14 +151,10 @@
                         >
                             Upload хийж байна...
                         </div>
-
                     </div>
-
-
                     <button
                         type="button"
                         id="remove-image"
-
                         class="
                             hidden
                             mt-3
@@ -219,14 +170,10 @@
                     >
                         Зураг арилгах
                     </button>
-
                 </div>
-
-
                 <!-- ===================================== -->
                 <!-- INFORMATION -->
                 <!-- ===================================== -->
-
                 <div
                     class="
                         lg:col-span-2
@@ -236,12 +183,8 @@
                         gap-5
                     "
                 >
-
-
                     <!-- NAME -->
-
                     <div class="md:col-span-2">
-
                         <label
                             class="
                                 block
@@ -252,12 +195,10 @@
                         >
                             Anime нэр *
                         </label>
-
                         <input
                             id="name"
                             type="text"
                             required
-
                             class="
                                 w-full
                                 border
@@ -271,23 +212,30 @@
                                 outline-none
                             "
                         >
-
                     </div>
-
-
+                    <div class="md:col-span-2">
+                        <label for="name-mn" class="block text-sm font-semibold mb-2">Монгол нэр</label>
+                        <input id="name-mn" type="text" placeholder="Анимэгийн монгол нэр"
+                            class="w-full border border-slate-300 rounded-xl px-4 py-3">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="related-search" class="block text-sm font-semibold mb-2">Холбоотой анимэ</label>
+                        <input id="related-search" type="search" placeholder="Үндсэн эсвэл монгол нэрээр хайх..."
+                            class="w-full border rounded-xl px-4 py-3 mb-3">
+                        <div id="related-selected" class="flex flex-wrap gap-2 mb-3"></div>
+                        <div id="related-options" class="border rounded-xl max-h-64 overflow-y-auto p-3 space-y-2"
+                            aria-label="Холбоотой анимэ сонгох">Ачаалж байна...</div>
+                        <p id="related-count" class="text-sm text-slate-500 mt-2" aria-live="polite"></p>
+                    </div>
                     <!-- TYPE -->
-
                     <div>
-
                         <label
                             class="block text-sm font-semibold mb-2"
                         >
                             Төрөл
                         </label>
-
                         <select
                             id="anime-type"
-
                             class="
                                 w-full
                                 border
@@ -304,23 +252,16 @@
                             <option value="special">Special</option>
                             <option value="music">Music</option>
                         </select>
-
                     </div>
-
-
                     <!-- STATUS -->
-
                     <div>
-
                         <label
                             class="block text-sm font-semibold mb-2"
                         >
                             Төлөв
                         </label>
-
                         <select
                             id="status"
-
                             class="
                                 w-full
                                 border
@@ -333,35 +274,25 @@
                             <option value="finished">
                                 Finished Airing
                             </option>
-
                             <option value="airing">
                                 Currently Airing
                             </option>
-
                             <option value="not_yet_aired">
                                 Not Yet Aired
                             </option>
-
                         </select>
-
                     </div>
-
-
                     <!-- EPISODES -->
-
                     <div>
-
                         <label
                             class="block text-sm font-semibold mb-2"
                         >
                             Нийт анги
                         </label>
-
                         <input
                             id="episodes"
                             type="number"
                             min="0"
-
                             class="
                                 w-full
                                 border
@@ -370,25 +301,18 @@
                                 py-3
                             "
                         >
-
                     </div>
-
-
                     <!-- PREMIERED -->
-
                     <div>
-
                         <label
                             class="block text-sm font-semibold mb-2"
                         >
                             Premiered
                         </label>
-
                         <input
                             id="premiered"
                             type="text"
                             placeholder="Fall 2026"
-
                             class="
                                 w-full
                                 border
@@ -397,24 +321,17 @@
                                 py-3
                             "
                         >
-
                     </div>
-
-
                     <!-- FROM -->
-
                     <div>
-
                         <label
                             class="block text-sm font-semibold mb-2"
                         >
                             Эхэлсэн огноо
                         </label>
-
                         <input
                             id="aired-from"
                             type="date"
-
                             class="
                                 w-full
                                 border
@@ -423,24 +340,17 @@
                                 py-3
                             "
                         >
-
                     </div>
-
-
                     <!-- TO -->
-
                     <div>
-
                         <label
                             class="block text-sm font-semibold mb-2"
                         >
                             Дууссан огноо
                         </label>
-
                         <input
                             id="aired-to"
                             type="date"
-
                             class="
                                 w-full
                                 border
@@ -449,24 +359,17 @@
                                 py-3
                             "
                         >
-
                     </div>
-
-
                     <!-- STUDIOS -->
-
                     <div>
-
                         <label
                             class="block text-sm font-semibold mb-2"
                         >
                             Studios
                         </label>
-
                         <input
                             id="studios"
                             type="text"
-
                             class="
                                 w-full
                                 border
@@ -475,24 +378,17 @@
                                 py-3
                             "
                         >
-
                     </div>
-
-
                     <!-- BROADCAST -->
-
                     <div>
-
                         <label
                             class="block text-sm font-semibold mb-2"
                         >
                             Broadcast
                         </label>
-
                         <input
                             id="broadcast"
                             type="text"
-
                             class="
                                 w-full
                                 border
@@ -501,24 +397,17 @@
                                 py-3
                             "
                         >
-
                     </div>
-
-
                     <!-- PRODUCERS -->
-
                     <div>
-
                         <label
                             class="block text-sm font-semibold mb-2"
                         >
                             Producers
                         </label>
-
                         <input
                             id="producers"
                             type="text"
-
                             class="
                                 w-full
                                 border
@@ -527,24 +416,17 @@
                                 py-3
                             "
                         >
-
                     </div>
-
-
                     <!-- LICENSORS -->
-
                     <div>
-
                         <label
                             class="block text-sm font-semibold mb-2"
                         >
                             Licensors
                         </label>
-
                         <input
                             id="licensors"
                             type="text"
-
                             class="
                                 w-full
                                 border
@@ -553,12 +435,9 @@
                                 py-3
                             "
                         >
-
                     </div>
                     <!-- GENRES -->
-
 <div class="md:col-span-2">
-
     <label
         class="
             block
@@ -569,105 +448,76 @@
     >
         Genre
     </label>
-
     <p class="text-xs text-slate-500 mb-3">
         Олон genre сонгож болно
     </p>
-
-
     <div
         id="genre-container"
-
         class="
             flex
             flex-wrap
             gap-2
-
             border
             border-slate-200
             rounded-xl
-
             bg-slate-50
             p-4
         "
     >
-
         {% for genre in genres %}
-
         <label
             class="
                 cursor-pointer
                 select-none
             "
         >
-
             <input
                 type="checkbox"
-
                 class="
                     genre-checkbox
                     hidden
                     peer
                 "
-
                 value="{{ genre.id }}"
             >
-
-
             <span
                 class="
                     inline-flex
                     items-center
-
                     px-3
                     py-2
-
                     rounded-lg
                     border
                     border-slate-200
-
                     bg-white
-
                     text-sm
                     font-medium
                     text-slate-600
-
                     hover:border-blue-400
                     hover:bg-blue-50
-
                     peer-checked:bg-blue-600
                     peer-checked:text-white
                     peer-checked:border-blue-600
-
                     transition-all
                     duration-150
                 "
             >
                 {{ genre.name }}
             </span>
-
         </label>
-
         {% endfor %}
-
     </div>
-
 </div>
-
                     <!-- DESCRIPTION -->
-
                     <div class="md:col-span-2">
-
                         <label
                             class="block text-sm font-semibold mb-2"
                         >
                             Description
                         </label>
-
                         <textarea
                             id="description"
                             rows="6"
-
                             class="
                                 w-full
                                 border
@@ -676,14 +526,9 @@
                                 py-3
                             "
                         ></textarea>
-
                     </div>
-
-
                     <!-- ACTIVE -->
-
                     <div>
-
                         <label
                             class="
                                 inline-flex
@@ -692,25 +537,18 @@
                                 cursor-pointer
                             "
                         >
-
                             <input
                                 id="active"
                                 type="checkbox"
                                 checked
                                 class="w-5 h-5"
                             >
-
                             <span class="font-medium">
                                 Active
                             </span>
-
                         </label>
-
                     </div>
-
-
                     <!-- BUTTONS -->
-
                     <div
                         class="
                             md:col-span-2
@@ -720,11 +558,9 @@
                             pt-4
                         "
                     >
-
                         <button
                             type="button"
                             id="cancel-edit"
-
                             class="
                                 hidden
                                 px-6
@@ -736,12 +572,9 @@
                         >
                             Болих
                         </button>
-
-
                         <button
                             type="submit"
                             id="save-button"
-
                             class="
                                 px-7
                                 py-3
@@ -756,22 +589,14 @@
                         >
                             Anime бүртгэх
                         </button>
-
                     </div>
-
                 </div>
-
             </div>
-
         </form>
-
     </div>
-
-
     <!-- ================================================= -->
     <!-- LIST -->
     <!-- ================================================= -->
-
     <div
         class="
             bg-white
@@ -783,7 +608,6 @@
             overflow-hidden
         "
     >
-
         <div
             class="
                 px-6
@@ -794,24 +618,17 @@
                 items-center
             "
         >
-
             <div>
-
                 <h2 class="text-xl font-bold">
                     Бүртгэлтэй Anime
                 </h2>
-
                 <p
                     id="anime-count"
                     class="text-sm text-slate-500"
                 ></p>
-
             </div>
-
-
             <button
                 onclick="loadAnimeList()"
-
                 class="
                     border
                     px-4
@@ -822,161 +639,153 @@
             >
                 ↻ Шинэчлэх
             </button>
-
         </div>
-
-
         <div
             id="anime-list"
             class="divide-y"
         ></div>
-
     </div>
-
 </div>
-
-
 <script>
-
 const form = document.getElementById('anime-form');
-
 const animeIdInput =
     document.getElementById('anime-id');
-
 const imageUrlInput =
     document.getElementById('image-url');
-
 const imagePublicIdInput =
     document.getElementById('image-public-id');
-
 const imageInput =
     document.getElementById('image-input');
-
 const dropZone =
     document.getElementById('image-drop-zone');
-
 const imagePreview =
     document.getElementById('image-preview');
-
 const imagePlaceholder =
     document.getElementById('image-placeholder');
-
 const imageLoading =
     document.getElementById('image-loading');
-
 const removeImageButton =
     document.getElementById('remove-image');
-
 const cancelEditButton =
     document.getElementById('cancel-edit');
-
 const saveButton =
     document.getElementById('save-button');
-
 let animeCache = [];
+let selectedRelatedIds = new Set();
+const relatedSearch = document.getElementById('related-search');
+const relatedOptions = document.getElementById('related-options');
+const relatedSelected = document.getElementById('related-selected');
 
-
+function renderRelatedAnime() {
+    const currentId = String(animeIdInput.value);
+    selectedRelatedIds.delete(currentId);
+    const query = relatedSearch.value.trim().toLocaleLowerCase();
+    relatedOptions.replaceChildren();
+    const candidates = animeCache.filter(anime => String(anime.id) !== currentId &&
+        `${anime.name || ''} ${anime.name_mn || ''}`.toLocaleLowerCase().includes(query));
+    for (const anime of candidates) {
+        const label = document.createElement('label');
+        label.className = 'flex items-center gap-3 p-2 rounded-lg hover:bg-blue-50 cursor-pointer';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = String(anime.id);
+        checkbox.checked = selectedRelatedIds.has(checkbox.value);
+        checkbox.addEventListener('change', () => {
+            if (checkbox.checked) selectedRelatedIds.add(checkbox.value);
+            else selectedRelatedIds.delete(checkbox.value);
+            renderRelatedAnime();
+        });
+        const title = document.createElement('span');
+        title.textContent = anime.name + (anime.name_mn ? ` — ${anime.name_mn}` : '');
+        label.append(checkbox, title);
+        relatedOptions.append(label);
+    }
+    if (!candidates.length) relatedOptions.textContent = 'Сонгох анимэ олдсонгүй.';
+    relatedSelected.replaceChildren();
+    for (const id of selectedRelatedIds) {
+        const anime = animeCache.find(item => String(item.id) === id);
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'bg-blue-50 text-blue-700 rounded-lg px-3 py-2 text-sm';
+        chip.textContent = `${anime?.name_mn || anime?.name || id} ×`;
+        chip.setAttribute('aria-label', `${anime?.name || id} сонголтыг хасах`);
+        chip.addEventListener('click', () => {
+            selectedRelatedIds.delete(id);
+            renderRelatedAnime();
+        });
+        relatedSelected.append(chip);
+    }
+    document.getElementById('related-count').textContent = `${selectedRelatedIds.size} анимэ сонгосон`;
+}
+relatedSearch.addEventListener('input', renderRelatedAnime);
 // ========================================================
 // DRAG & DROP
 // ========================================================
-
 dropZone.addEventListener('click', () => {
     imageInput.click();
 });
-
-
 imageInput.addEventListener('change', () => {
-
     if (imageInput.files.length) {
         uploadAnimeImage(
             imageInput.files[0]
         );
     }
-
 });
-
-
 ['dragenter', 'dragover'].forEach(eventName => {
-
     dropZone.addEventListener(
         eventName,
         event => {
-
             event.preventDefault();
-
             dropZone.classList.add(
                 'border-blue-500',
                 'bg-blue-50'
             );
         }
     );
-
 });
-
-
 ['dragleave', 'drop'].forEach(eventName => {
-
     dropZone.addEventListener(
         eventName,
         event => {
-
             event.preventDefault();
-
             dropZone.classList.remove(
                 'border-blue-500',
                 'bg-blue-50'
             );
         }
     );
-
 });
-
-
 dropZone.addEventListener('drop', event => {
-
     const files =
         event.dataTransfer.files;
-
     if (!files.length) {
         return;
     }
-
     uploadAnimeImage(
         files[0]
     );
-
 });
-
-
 // ========================================================
 // IMAGE UPLOAD
 // ========================================================
-
 async function uploadAnimeImage(file) {
-
     if (!file.type.startsWith('image/')) {
         alert('Зөвхөн зураг оруулна.');
         return;
     }
-
     const formData =
         new FormData();
-
     formData.append(
         'image',
         file
     );
-
     imageLoading.classList.remove(
         'hidden'
     );
-
     imageLoading.classList.add(
         'flex'
     );
-
     try {
-
         const res = await fetch(
             '/api/admin/anime/image-upload',
             {
@@ -984,115 +793,83 @@ async function uploadAnimeImage(file) {
                 body: formData
             }
         );
-
         const data =
             await res.json();
-
         if (!res.ok || !data.ok) {
             throw new Error(
                 data.error ||
                 'Image upload error'
             );
         }
-
         imageUrlInput.value =
             data.image_url;
-
         imagePublicIdInput.value =
             data.public_id;
-
         showImage(
             data.image_url
         );
-
     } catch (err) {
-
         alert(
             err.message
         );
-
     } finally {
-
         imageLoading.classList.add(
             'hidden'
         );
-
         imageLoading.classList.remove(
             'flex'
         );
     }
 }
-
-
 // ========================================================
 // SHOW IMAGE
 // ========================================================
-
 function showImage(url) {
-
     if (!url) {
-
         imagePreview.classList.add(
             'hidden'
         );
-
         imagePlaceholder.classList.remove(
             'hidden'
         );
-
         removeImageButton.classList.add(
             'hidden'
         );
-
         return;
     }
-
     imagePreview.src =
         url;
-
     imagePreview.classList.remove(
         'hidden'
     );
-
     imagePlaceholder.classList.add(
         'hidden'
     );
-
     removeImageButton.classList.remove(
         'hidden'
     );
 }
-
-
 removeImageButton.addEventListener(
     'click',
     event => {
-
         event.stopPropagation();
-
         imageUrlInput.value = '';
         imagePublicIdInput.value = '';
-
         showImage('');
     }
 );
-
-
 // ========================================================
 // CREATE / UPDATE
 // ========================================================
-
 form.addEventListener(
     'submit',
     async event => {
-
         event.preventDefault();
-
         const animeId =
             animeIdInput.value;
-
         const payload = {
-
+            name_mn: document.getElementById('name-mn').value.trim(),
+            related_anime_ids: [...selectedRelatedIds].filter(id => id !== String(animeId)),
             name:
                 document.getElementById(
                     'name'
@@ -1109,101 +886,73 @@ form.addEventListener(
                 document.getElementById(
                     'description'
                 ).value,
-
             anime_type:
                 document.getElementById(
                     'anime-type'
                 ).value,
-
             episodes:
                 document.getElementById(
                     'episodes'
                 ).value,
-
             status:
                 document.getElementById(
                     'status'
                 ).value,
-
             aired_from:
                 document.getElementById(
                     'aired-from'
                 ).value,
-
             aired_to:
                 document.getElementById(
                     'aired-to'
                 ).value,
-
             premiered:
                 document.getElementById(
                     'premiered'
                 ).value,
-
             broadcast:
                 document.getElementById(
                     'broadcast'
                 ).value,
-
             producers:
                 document.getElementById(
                     'producers'
                 ).value,
-
             licensors:
                 document.getElementById(
                     'licensors'
                 ).value,
-
             studios:
                 document.getElementById(
                     'studios'
                 ).value,
-
             active:
                 document.getElementById(
                     'active'
                 ).checked,
-
             image_url:
                 imageUrlInput.value,
-
             image_public_id:
                 imagePublicIdInput.value,
         };
-
-
         let url;
         let method;
-
-
         if (animeId) {
-
             url =
                 `/api/admin/anime/${animeId}`;
-
             method =
                 'PUT';
-
         } else {
-
             url =
                 '/api/admin/anime/create';
-
             method =
                 'POST';
         }
-
-
         saveButton.disabled =
             true;
-
         saveButton.textContent =
             'Хадгалж байна...';
-
-
         try {
-
             const res =
                 await fetch(
                     url,
@@ -1219,109 +968,73 @@ form.addEventListener(
                             )
                     }
                 );
-
-
             const data =
                 await res.json();
-
-
             if (!res.ok || !data.ok) {
-
                 throw new Error(
                     data.error ||
                     'Save error'
                 );
             }
-
-
             resetForm();
-
             await loadAnimeList();
-
-
         } catch (err) {
-
             alert(
                 err.message
             );
-
         } finally {
-
             saveButton.disabled =
                 false;
-
             saveButton.textContent =
                 animeIdInput.value
                 ? 'Өөрчлөлт хадгалах'
                 : 'Anime бүртгэх';
         }
-
     }
 );
-
-
 // ========================================================
 // LOAD LIST
 // ========================================================
-
 async function loadAnimeList() {
-
     const container =
         document.getElementById(
             'anime-list'
         );
-
     container.innerHTML = `
         <div class="p-8 text-center text-slate-500">
             Ачаалж байна...
         </div>
     `;
-
-
     try {
-
         const res =
             await fetch(
                 '/api/admin/anime'
             );
-
         const data =
             await res.json();
-
-
         if (!res.ok || !data.ok) {
             throw new Error(
                 data.error
             );
         }
-
-
         animeCache =
             data.results || [];
-
-
+        renderRelatedAnime();
         document.getElementById(
             'anime-count'
         ).textContent =
             `${animeCache.length} anime`;
-
-
         if (!animeCache.length) {
-
             container.innerHTML = `
                 <div class="p-10 text-center text-slate-500">
                     Anime бүртгэл алга.
                 </div>
             `;
-
             return;
         }
-
-
         container.innerHTML =
             animeCache.map(
                 anime => `
-
                 <div
                     class="
                         p-4
@@ -1331,7 +1044,6 @@ async function loadAnimeList() {
                         hover:bg-slate-50
                     "
                 >
-
                     <div
                         class="
                             w-16
@@ -1342,10 +1054,8 @@ async function loadAnimeList() {
                             shrink-0
                         "
                     >
-
                         ${
                             anime.image_url
-
                             ? `
                                 <img
                                     src="${anime.image_url}"
@@ -1356,7 +1066,6 @@ async function loadAnimeList() {
                                     "
                                 >
                             `
-
                             : `
                                 <div
                                     class="
@@ -1371,12 +1080,8 @@ async function loadAnimeList() {
                                 </div>
                             `
                         }
-
                     </div>
-
-
                     <div class="flex-1 min-w-0">
-
                         <h3
                             class="
                                 font-bold
@@ -1388,8 +1093,7 @@ async function loadAnimeList() {
                                 anime.name
                             )}
                         </h3>
-
-
+                    <p class="text-sm text-slate-600">${escapeHtml(anime.name_mn || '')}</p>
                         <div
                             class="
                                 text-sm
@@ -1400,19 +1104,15 @@ async function loadAnimeList() {
                                 flex-wrap
                             "
                         >
-
                             <span>
                                 ${anime.anime_type || '-'}
                             </span>
-
                             <span>
                                 ${anime.episodes || 0} анги
                             </span>
-
                             <span>
                                 ${anime.status || ''}
                             </span>
-
                             <span>
                                 ${
                                     anime.active
@@ -1420,21 +1120,11 @@ async function loadAnimeList() {
                                     : '⚪ Inactive'
                                 }
                             </span>
-
                         </div>
-
                     </div>
-
-
                     <div class="flex gap-2">
-
                         <button
-                            onclick="
-                                editAnime(
-                                    '${anime.id}'
-                                )
-                            "
-
+                            data-edit-id="${escapeHtml(String(anime.id))}"
                             class="
                                 px-4
                                 py-2
@@ -1446,16 +1136,8 @@ async function loadAnimeList() {
                         >
                             Засах
                         </button>
-
-
                         <button
-                            onclick="
-                                deleteAnime(
-                                    '${anime.id}',
-                                    '${escapeJs(anime.name)}'
-                                )
-                            "
-
+                            data-delete-id="${escapeHtml(String(anime.id))}"
                             class="
                                 px-4
                                 py-2
@@ -1467,17 +1149,11 @@ async function loadAnimeList() {
                         >
                             Устгах
                         </button>
-
                     </div>
-
                 </div>
-
             `
             ).join('');
-
-
     } catch (err) {
-
         container.innerHTML = `
             <div
                 class="
@@ -1491,163 +1167,115 @@ async function loadAnimeList() {
         `;
     }
 }
-
-
 // ========================================================
 // EDIT
 // ========================================================
-
 function editAnime(id) {
-
     const anime =
         animeCache.find(
-            item => item.id === id
+            item => String(item.id) === String(id)
         );
-
     if (!anime) {
         return;
     }
+    document.getElementById('name-mn').value = anime.name_mn || '';
+    selectedRelatedIds = new Set((anime.related_anime_ids || []).map(String));
+    relatedSearch.value = '';
     const selectedGenreIds =
         new Set(
             (anime.genre_ids || []).map(
                 String
             )
         );
-
-
     document.querySelectorAll(
         '.genre-checkbox'
     ).forEach(
         checkbox => {
-
             checkbox.checked =
                 selectedGenreIds.has(
                     checkbox.value
                 );
-
         }
     );
-
     animeIdInput.value =
         anime.id;
-
-
+    renderRelatedAnime();
     document.getElementById(
         'name'
     ).value =
         anime.name || '';
-
-
     document.getElementById(
         'description'
     ).value =
         anime.description || '';
-
-
     document.getElementById(
         'anime-type'
     ).value =
         anime.anime_type || 'tv';
-
-
     document.getElementById(
         'episodes'
     ).value =
         anime.episodes ?? '';
-
-
     document.getElementById(
         'status'
     ).value =
         anime.status || 'finished';
-
-
     document.getElementById(
         'aired-from'
     ).value =
         anime.aired_from || '';
-
-
     document.getElementById(
         'aired-to'
     ).value =
         anime.aired_to || '';
-
-
     document.getElementById(
         'premiered'
     ).value =
         anime.premiered || '';
-
-
     document.getElementById(
         'broadcast'
     ).value =
         anime.broadcast || '';
-
-
     document.getElementById(
         'producers'
     ).value =
         anime.producers || '';
-
-
     document.getElementById(
         'licensors'
     ).value =
         anime.licensors || '';
-
-
     document.getElementById(
         'studios'
     ).value =
         anime.studios || '';
-
-
     document.getElementById(
         'active'
     ).checked =
         anime.active !== false;
-
-
     imageUrlInput.value =
         anime.image_url || '';
-
-
     imagePublicIdInput.value =
         anime.image_public_id || '';
-
-
     showImage(
         anime.image_url
     );
-
-
     saveButton.textContent =
         'Өөрчлөлт хадгалах';
-
-
     cancelEditButton.classList.remove(
         'hidden'
     );
-
-
     window.scrollTo({
         top: 0,
         behavior: 'smooth'
     });
 }
-
-
 // ========================================================
 // DELETE
 // ========================================================
-
 async function deleteAnime(
     id,
     name
 ) {
-
     if (
         !confirm(
             `"${name}" anime-г устгах уу?`
@@ -1655,10 +1283,7 @@ async function deleteAnime(
     ) {
         return;
     }
-
-
     try {
-
         const res =
             await fetch(
                 `/api/admin/anime/${id}`,
@@ -1666,109 +1291,74 @@ async function deleteAnime(
                     method: 'DELETE'
                 }
             );
-
-
         const data =
             await res.json();
-
-
         if (!res.ok || !data.ok) {
-
             throw new Error(
                 data.error ||
                 'Delete error'
             );
         }
-
-
         await loadAnimeList();
-
-
         if (
-            animeIdInput.value === id
+            animeIdInput.value === String(id)
         ) {
             resetForm();
         }
-
-
     } catch (err) {
-
         alert(
             err.message
         );
     }
 }
-
-
 // ========================================================
 // RESET
 // ========================================================
-
 function resetForm() {
-
     form.reset();
-
     animeIdInput.value = '';
-
+    selectedRelatedIds.clear();
+    relatedSearch.value = '';
+    renderRelatedAnime();
     imageUrlInput.value = '';
-
     imagePublicIdInput.value = '';
-
     document.getElementById(
         'active'
     ).checked = true;
-
     showImage('');
-
     saveButton.textContent =
         'Anime бүртгэх';
-
     cancelEditButton.classList.add(
         'hidden'
     );
 }
-
-
 cancelEditButton.addEventListener(
     'click',
     resetForm
 );
-
-
 // ========================================================
 // ESCAPE
 // ========================================================
-
 function escapeHtml(value) {
-
     const div =
         document.createElement('div');
-
     div.textContent =
         value || '';
-
     return div.innerHTML;
 }
-
-
-function escapeJs(value) {
-
-    return String(
-        value || ''
-    )
-        .replace(/\\/g, '\\\\')
-        .replace(/'/g, "\\'");
-}
-
-
 // ========================================================
 // INIT
+ document.getElementById('anime-list').addEventListener('click', event => {
+    const edit = event.target.closest('[data-edit-id]');
+    const remove = event.target.closest('[data-delete-id]');
+    if (edit) editAnime(edit.dataset.editId);
+    if (remove) {
+        const anime = animeCache.find(item => String(item.id) === remove.dataset.deleteId);
+        if (anime) deleteAnime(String(anime.id), anime.name);
+    }
+ });
 // ========================================================
-
 loadAnimeList();
-
 </script>
-
-
 </body>
 </html>
