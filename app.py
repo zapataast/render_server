@@ -77,6 +77,7 @@ anime_collection = mongo_db["anime"]
 files_collection = mongo_db["files"]
 home_comments_collection = mongo_db["home_comments"]
 zip_files = mongo_db["zip_files"]
+purchases_collection = mongo_db['purchases']
 watch_history_collection = mongo_db['watch_history']
 users_collection = mongo_db.users
 genres_collection = mongo_db.genres
@@ -127,7 +128,7 @@ ALLOWED_FILE_EXTENSIONS = {
     ".zip",
 }
 
-ALLOWED_PRICE_TYPES = {"free", "plus", "pro"}
+ALLOWED_PRICE_TYPES = {"free", "base","plus", "pro"}
 ALLOWED_AGE_RATINGS = {"all", "13+", "18+"}
 ALLOWED_COUNTRIES = {"japan", "usa", "uk", "china", "korea", "other"}
 def clean_choice(value, allowed, default):
@@ -1764,6 +1765,62 @@ def clear_playback_on_navigation():
         {"_id": ObjectId(uid), "playback": {"$exists": True}},
         {"$unset": {"playback": ""}},
     )
+import secrets
+
+def mini_uuid(nbytes: int = 4) -> str:
+    return secrets.token_hex(nbytes) 
+def __compute_user_license(video_id , user, vtype='video'):
+    _uuid = mini_uuid()
+    print("🧿 🧿 🧿 >>>>> _uuid: " , _uuid)
+
+    return True
+
+
+def record_purchase(user_id, video_id, amount=0, payment_id=None, provider=None):
+    """
+    Төлбөр амжилттай болсон үед худалдан авалтыг бүртгэнэ.
+    Аль хэдийн бүртгэлтэй бол давхар үүсгэхгүй.
+    Буцаах утга: True = шинээр бүртгэв, False = өмнө нь бүртгэлтэй байсан.
+    """
+    user_id = user_id if isinstance(user_id, ObjectId) else str(user_id)
+    video_oid = video_id if isinstance(video_id, ObjectId) else ObjectId(video_id)
+
+    now = datetime.now(timezone.utc)
+
+    try:
+        result = purchases_collection.update_one(
+            {"user_id": user_id, "video_id": video_oid},
+            {
+                "$setOnInsert": {
+                    "user_id": user_id,
+                    "video_id": video_oid,
+                    "amount": amount,
+                    "payment_id": payment_id,   # QPay invoice/transaction id
+                    "provider": provider,       # "qpay", "card" гэх мэт
+                    "status": "paid",
+                    "created_at": now,
+                }
+            },
+            upsert=True,
+        )
+        return result.upserted_id is not None
+    except DuplicateKeyError:
+        return False
+def get_paid_video_ids(user_id, videos):
+    print("🐍 File: render_server/app.py | Line: 1810 | undefined ~ user_id",user_id)
+
+    """Хэрэглэгчийн худалдаж авсан video_id-уудын set буцаана."""
+    if not user_id or not videos:
+        return set()
+
+    video_ids = [v["_id"] for v in videos]
+    purchases = purchases_collection.find(
+        {"user_id": user_id, "video_id": {"$in": video_ids}},
+        {"video_id": 1},
+    )
+    return {str(p["video_id"]) for p in purchases}
+
+
 @app.get("/watch/<video_id>")
 def watch_video(video_id):
     user = get_current_user()
@@ -1777,10 +1834,14 @@ def watch_video(video_id):
         "_id": ObjectId(video_id),
         "is_uploaded": True,
     })
-    price_type = video.get('price_type' , 'free') 
-    print("🌠 🌠 🌠 price_type : " , price_type)
     if not video:
         abort(404)
+
+    price_type = video.get('price_type' , 'free') 
+
+    print("🌠 🌠 🌠 price_type : " , price_type)
+    if price_type != 'free': 
+        _licence = __compute_user_license(video["_id"], user , vtype='video')
 
     save_watch_history(user, video)   
 
@@ -2365,7 +2426,7 @@ def anime_detail(anime_id):
             "genre_ids",
             []
         )
-
+        video_list = []
         genres = []
 
         if genre_ids:
@@ -2388,21 +2449,55 @@ def anime_detail(anime_id):
                     genre["_id"]
                 )
 
+        created = record_purchase(
+            user_id=get_current_user().get('_id'),
+            video_id='6aed7c29ddc2ec421509a3ed',
+            amount=1000,
+            payment_id="TEST-PAYMENT-001",
+            provider="test",
+        )
 
         anime["genres"] = genres
+        paid_ids = get_paid_video_ids(get_current_user().get('_id'), videos)
+        print("🐍 File: render_server/app.py | Line: 2462 | anime_detail ~ paid_ids",paid_ids)
 
-        for video in videos:
-            video["id"] = str(video["_id"])
+        for v in videos:
+            price_type = v.get("price_type", "free")
+            is_paid = str(v["_id"]) in paid_ids     
 
+            print("🐍 File: render_server/app.py | Line: 2466 | anime_detail ~ is_paid",v["_id"], paid_ids , is_paid)
+            locked = price_type != "free" and not is_paid
+            print("🐍 File: render_server/app.py | Line: 2468 | anime_detail ~ locked",locked)
+
+            video_list.append({
+                "id": str(v["_id"]),
+                "title": v.get("title", ""),
+                "episode_number": v.get("episode_number", ""),
+                "price_type": price_type,
+                "is_paid": is_paid,
+                "locked": locked,
+            })
         return render_template(
             "anime_detail.html",
             anime=anime,
-            videos=videos,
+            videos=video_list,
         )
     else:
         return render_template(
             "login.html"
         )
+@app.route("/payment/<video_id>")
+def payment(video_id):
+    print("🐍 File: render_server/app.py | Line: 2422 | undefined ~ video_id",video_id)
+    video = videos_collection.find_one({"_id": ObjectId(video_id)})
+    if not video:
+        abort(404)
+
+    if not session.get("user_id"):
+        return redirect(f"/login?next=/payment/{video_id}")
+
+    return render_template("payment.html", video=video)
+    
 def position_ok(user_id, start, file_size, duration):
     bitrate = file_size / duration
     req_sec = start / bitrate

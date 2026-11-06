@@ -311,63 +311,35 @@
 
             {% for video in videos %}
 
-            <a
-                href="/watch/{{ video.id }}"
+<a
+    href="{{ '/payment/' ~ video.id if video.locked else '/watch/' ~ video.id }}"
+    class="
+        relative bg-slate-900 hover:bg-slate-800 border rounded-xl p-4 transition group
+        {{ 'border-amber-500/40 hover:border-amber-400' if video.locked else 'border-slate-800 hover:border-slate-600' }}
+    "
+>
 
-                class="
-                    bg-slate-900
-                    hover:bg-slate-800
-                    border
-                    border-slate-800
-                    hover:border-slate-600
-                    rounded-xl
-                    p-4
-                    transition
-                    group
-                "
-            >
+    {% if video.locked %}
+    <span class="absolute top-2 right-2 text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full">
+        🔒 {{ video.price_type|upper }}
+    </span>
+    {% elif video.price_type != 'free' and video.is_paid %}
+    <span class="absolute top-2 right-2 text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+        ✓ Авсан
+    </span>
+    {% endif %}
 
-                <div
-                    class="
-                        text-xs
-                        text-slate-500
-                    "
-                >
-                    EPISODE
-                </div>
+    <div class="text-xs text-slate-500">EPISODE</div>
+    <div class="text-lg font-bold mt-1 group-hover:text-blue-400">
+        {{ video.episode_number or loop.index }}
+    </div>
 
-                <div
-                    class="
-                        text-lg
-                        font-bold
-                        mt-1
-                        group-hover:text-blue-400
-                    "
-                >
+    {% if video.title %}
+    <div class="text-xs text-slate-400 mt-2 truncate">{{ video.title }}</div>
+    {% endif %}
+</a>
 
-                    {{ video.episode_number or loop.index }}
-
-                </div>
-
-
-                {% if video.title %}
-
-                <div
-                    class="
-                        text-xs
-                        text-slate-400
-                        mt-2
-                        truncate
-                    "
-                >
-                    {{ video.title }}
-                </div>
-
-                {% endif %}
-
-            </a>
-
-            {% endfor %}
+{% endfor %}
 
         </div>
 
