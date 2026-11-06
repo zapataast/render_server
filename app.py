@@ -87,7 +87,7 @@ DOWNLOAD_CATEGORIES = {
 }
 
 MAX_COVER_SIZE = 5 * 1024 * 1024
-VERCEL_RANGE_SIZE = 10 * 1024 * 1024  # 8 MB TELEGRAM butsaah hemjee 1 udaagiin
+VERCEL_RANGE_SIZE = 20 * 1024 * 1024  # 8 MB TELEGRAM butsaah hemjee 1 udaagiin
 ACTIVE_TTL = 90  # секунд. ping ирэхгүй бол сесс дууссанд тооцно
         
 AHEAD = 400          # секунд: одоогийн байрлалаас урагш зөвшөөрөх хэмжээ
@@ -126,6 +126,13 @@ ALLOWED_FILE_EXTENSIONS = {
     ".rar",
     ".zip",
 }
+
+ALLOWED_PRICE_TYPES = {"free", "plus", "pro"}
+ALLOWED_AGE_RATINGS = {"all", "13+", "18+"}
+ALLOWED_COUNTRIES = {"japan", "usa", "uk", "china", "korea", "other"}
+def clean_choice(value, allowed, default):
+    value = (value or "").strip().lower()
+    return value if value in allowed else default
 def allowed_upload_file(
     filename
 ):
@@ -257,7 +264,9 @@ def serialize_anime(anime):
         "episodes": anime.get("episodes"),
 
         "status": anime.get("status", "finished"),
-
+        "price_type" : anime.get("price_type" , 'free') , 
+        'age_rating': anime.get("age_rating" , 'all'),
+        'country' : anime.get('country', 'japan'),
         "aired_from": (
             anime.get("aired_from").strftime("%Y-%m-%d")
             if anime.get("aired_from")
@@ -2060,6 +2069,9 @@ def upload_video():
 
     title = (request.form.get("title") or "").strip()
     anime_id_raw = (request.form.get("anime_id") or "").strip()
+    price_type = (request.form.get("price_type") or "free").strip().lower()
+    if price_type not in ALLOWED_PRICE_TYPES:
+        price_type = "free"
     print("🐍 File: render_server/app.py | Line: 490 | upload_video ~ anime_id_raw",anime_id_raw)
     episode_raw = (request.form.get("episode_number") or "").strip()
     duration_raw = (request.form.get("duration") or "").strip()
@@ -2122,6 +2134,7 @@ def upload_video():
             "anime_id": anime_id,
             "title": title,
             "episode_number": episode_number,
+            "price_type" : price_type,
             "telegram_channel_id": telegram_result["channel_id"],
             "telegram_message_id": telegram_result["message_id"],
             "file_name": telegram_result.get("file_name") or original_name,
@@ -2834,7 +2847,15 @@ def api_anime_create():
                 data.get("related_anime_ids", [])
             ),
             "episodes": episodes,
-
+            "price_type": clean_choice(
+                data.get("price_type"), ALLOWED_PRICE_TYPES, "free"
+            ),
+            "age_rating": clean_choice(
+                data.get("age_rating"), ALLOWED_AGE_RATINGS, "all"
+            ),
+            "country": clean_choice(
+                data.get("country"), ALLOWED_COUNTRIES, "japan"
+            ),
             "status": data.get(
                 "status",
                 "finished"
@@ -2975,6 +2996,23 @@ def api_anime_update(anime_id):
                 data.get("name") or ""
             ).strip(),
             "name_mn": data.get("name_mn", ""),
+            "price_type": clean_choice(
+                data.get("price_type", anime.get("price_type")),
+                ALLOWED_PRICE_TYPES,
+                "free",
+            ),
+
+            "age_rating": clean_choice(
+                data.get("age_rating", anime.get("age_rating")),
+                ALLOWED_AGE_RATINGS,
+                "all",
+            ),
+
+            "country": clean_choice(
+                data.get("country", anime.get("country")),
+                ALLOWED_COUNTRIES,
+                "japan",
+            ),
             "related_anime_ids": [
                 str(value)
                 for value in data.get("related_anime_ids", [])

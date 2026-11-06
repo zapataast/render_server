@@ -360,6 +360,38 @@
                             "
                         >
                     </div>
+                    <!-- PRICE TYPE -->
+                        <div>
+                            <label for="price-type" class="block text-sm font-semibold mb-2">Үнийн төрөл</label>
+                            <select id="price-type" class="w-full border rounded-xl px-4 py-3 bg-white">
+                                <option value="free" selected>Free</option>
+                                <option value="plus">Plus</option>
+                                <option value="pro">Pro</option>
+                            </select>
+                        </div>
+
+                        <!-- AGE RATING -->
+                        <div>
+                            <label for="age-rating" class="block text-sm font-semibold mb-2">Насны ангилал</label>
+                            <select id="age-rating" class="w-full border rounded-xl px-4 py-3 bg-white">
+                                <option value="all" selected>Бүх нас</option>
+                                <option value="13+">13+</option>
+                                <option value="18+">18+</option>
+                            </select>
+                        </div>
+
+                        <!-- COUNTRY -->
+                        <div>
+                            <label for="country" class="block text-sm font-semibold mb-2">Улс</label>
+                            <select id="country" class="w-full border rounded-xl px-4 py-3 bg-white">
+                                <option value="japan" selected>Япон</option>
+                                <option value="usa">Америк</option>
+                                <option value="uk">Англи</option>
+                                <option value="china">Хятад</option>
+                                <option value="korea">Солонгос</option>
+                                <option value="other">Бусад</option>
+                            </select>
+                        </div>
                     <!-- STUDIOS -->
                     <div>
                         <label
@@ -886,6 +918,9 @@ form.addEventListener(
                 document.getElementById(
                     'description'
                 ).value,
+            price_type: document.getElementById('price-type').value,
+            age_rating: document.getElementById('age-rating').value,
+            country: document.getElementById('country').value,
             anime_type:
                 document.getElementById(
                     'anime-type'
@@ -1107,6 +1142,9 @@ async function loadAnimeList() {
                             <span>
                                 ${anime.anime_type || '-'}
                             </span>
+                            <span>${escapeHtml(anime.price_type || 'free')}</span>
+                            <span>${escapeHtml(anime.age_rating || 'all')}</span>
+                            <span>${escapeHtml(anime.country || 'japan')}</span>
                             <span>
                                 ${anime.episodes || 0} анги
                             </span>
@@ -1179,6 +1217,9 @@ function editAnime(id) {
         return;
     }
     document.getElementById('name-mn').value = anime.name_mn || '';
+    document.getElementById('price-type').value = anime.price_type || 'free';
+    document.getElementById('age-rating').value = anime.age_rating || 'all';
+    document.getElementById('country').value = anime.country || 'japan';
     selectedRelatedIds = new Set((anime.related_anime_ids || []).map(String));
     relatedSearch.value = '';
     const selectedGenreIds =

@@ -56,6 +56,15 @@
             <label>Duration (sec)</label>
             <input name="duration" type="number" min="0" step="0.01" placeholder="1422.5">
           </div>
+
+          <div class="upload-field">
+            <label for="priceType">Үнийн төрөл</label>
+            <select id="priceType" name="price_type">
+              <option value="free" selected>Free</option>
+              <option value="plus">Plus</option>
+              <option value="pro">Pro</option>
+            </select>
+          </div>
         </div>
 
         <div class="upload-section-title second"><span>02</span><h2>Video сонгох</h2></div>
@@ -92,6 +101,7 @@
           <div class="success-box"><span>✓</span><div><b>Telegram upload complete</b><small id="djangoSaveState">Metadata...</small></div></div>
           <div class="metadata-row"><span>Channel ID</span><b id="resultChannel">—</b></div>
           <div class="metadata-row"><span>Message ID</span><b id="resultMessage">—</b></div>
+          <div class="metadata-row"><span>Price</span><b id="resultPrice">—</b></div>
           <div class="metadata-row"><span>File</span><b id="resultFile">—</b></div>
           <div class="metadata-row"><span>Size</span><b id="resultSize">—</b></div>
         </div>

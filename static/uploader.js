@@ -91,6 +91,8 @@ function successResult(data) {
   document.getElementById('resultMessage').textContent = v.telegram_message_id ?? '—';
   document.getElementById('resultFile').textContent = v.file_name || '—';
   document.getElementById('resultSize').textContent = humanSize(v.file_size);
+  document.getElementById('resultPrice').textContent =
+  (v.price_type || form.elements['price_type'].value).toUpperCase();
   const state = document.getElementById('djangoSaveState');
   if (d.saved) state.textContent = 'Django / PostgreSQL хадгалсан';
   else if (!d.configured) state.textContent = 'Django callback тохируулаагүй';
