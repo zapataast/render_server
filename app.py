@@ -1777,7 +1777,8 @@ def watch_video(video_id):
         "_id": ObjectId(video_id),
         "is_uploaded": True,
     })
-    
+    price_type = video.get('price_type' , 'free') 
+    print("🌠 🌠 🌠 price_type : " , price_type)
     if not video:
         abort(404)
 
@@ -3269,18 +3270,18 @@ def admin_videos_page():
 def admin_get_videos():
 
     videos = list(
-        videos_collection.find(
-            {}
-        ).sort(
-            "episode_number",
-            1,
-        )
+        videos_collection.find({}).sort("created_at", -1).limit(100)  # -1 = шинээс хуучин руу (descending)
     )
 
     result = []
 
     for video in videos:
-
+        
+        anime = anime_collection.find_one({
+            "_id": ObjectId(video.get("anime_id"))
+        })
+        if anime is None:
+            anime = {}
         result.append({
             "id": str(
                 video.get("_id")
@@ -3295,6 +3296,8 @@ def admin_get_videos():
                 "title",
                 ""
             ),
+            'price_type' : video.get("price_type" , 'free'),
+            "anime_name" : anime.get("name", ''),
             "episode_number": video.get(
                 "episode_number",
                 ""
@@ -3351,7 +3354,9 @@ def admin_update_video(video_id):
     episode_number = data.get(
         "episode_number"
     )
-
+    priceType = data.get(
+            "priceType"
+        )
     if not title:
 
         return jsonify({
@@ -3385,6 +3390,7 @@ def admin_update_video(video_id):
             "$set": {
                 "title": title,
                 "episode_number": episode_number,
+                "price_type" : priceType,
                 "updated_at": utcnow(),
             }
         },

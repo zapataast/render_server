@@ -150,9 +150,8 @@
                     >
 
                         <tr>
-
-                            <th
-                                class="
+                            <th class="text-left px-5 py-4">Анимэ</th>
+                            <th class="
                                     text-left
                                     px-5
                                     py-4
@@ -170,7 +169,7 @@
                             >
                                 Нэр
                             </th>
-
+                            <th class="text-left px-5 py-4">Эрхийн төрөл</th>
                             <th
                                 class="
                                     text-left
@@ -349,7 +348,9 @@ function renderVideos() {
                     transition
                 "
             >
-
+                <td class="px-5 py-4 min-w-[220px] font-semibold text-slate-800">
+                        ${escapeHtml(video.anime_name || "Анимэ олдсонгүй")}
+                    </td>
                 <!-- EPISODE -->
 
                 <td
@@ -413,7 +414,16 @@ function renderVideos() {
 
                 </td>
 
-
+                <td class="px-5 py-4">
+                <select id="price-${video.id}" class="w-32 border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-indigo-500">
+                    <option value="" ${!video.price_type ? "selected" : ""} disabled>Сонгох</option>
+                    ${[...new Set(["free","base", "plus" ,"pro", video.price_type].filter(Boolean))].map(type => `
+                        <option value="${escapeHtml(type)}" ${video.price_type === type ? "selected" : ""}>
+                            ${escapeHtml(type)}
+                        </option>
+                    `).join("")}
+                </select>
+            </td>
                 <!-- FILE -->
 
                 <td
@@ -516,7 +526,12 @@ async function updateVideo(id) {
         document.getElementById(
             `episode-${id}`
         ).value;
+    const priceType = document.getElementById(`price-${id}`).value;
 
+    if (!priceType) {
+        alert("Эрхийн төрлөө сонгоно уу.");
+        return;
+    }
 
     if (!title) {
 
@@ -526,7 +541,10 @@ async function updateVideo(id) {
 
         return;
     }
-
+    alert(
+        "Амжилттай хадгалагдлаа."
+    );
+     /*
 
     try {
 
@@ -542,8 +560,8 @@ async function updateVideo(id) {
 
                 body: JSON.stringify({
                     title: title,
-                    episode_number:
-                        episodeNumber
+                    episode_number: episodeNumber,
+                    priceType : priceType
                 })
             }
         );
@@ -580,6 +598,7 @@ async function updateVideo(id) {
         );
 
     }
+        */
 
 }
 
