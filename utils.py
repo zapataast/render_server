@@ -10,29 +10,48 @@ from pymongo import MongoClient
 
 from dotenv import load_dotenv
 from pymongo import MongoClient
+load_dotenv()
+paylink_url = os.getenv("paylink_url", "")
+def check_invoice_paylink(inv_id='inv_mw7mxyy2404052'):
+    import requests
+
+    url = paylink_url+ "v1/external/process"
+
+    payload = { "invid": inv_id }
+    headers = {
+        "content-type": "application/json",
+        "pc": "cu0904",
+        "X-SIGNATURE": os.getenv("paylink_token" , False),
+        "X-USERNAME": os.getenv("paylink_username" , 'zapataast@gmail.com')
+    }
+
+    response = requests.post(url, json=payload, headers=headers,timeout=3)
+
+    return response.json()
 
 def create_invoice_paylink(amount=0, msg='' , merchant_ref='Nirgee'):
     pc ="cu0900"
-    url = paylink_url + "/v1/external/process"
-
+    url = paylink_url + "v1/external/process"
+    X_SIGNATURE = os.getenv("paylink_token" , False)
+    X_username = os.getenv("paylink_username" , 'zapataast@gmail.com')
     payload = {
-        "amount_total": 2000,
+        "amount_total": amount,
         "count_total": 1,
-        "amount": 2000,
+        "amount": amount,
         "txndesc": msg,
         "merchant_ref": merchant_ref,
         "fee_percent": 0,
         "fee_amount": 0,
-        "base_amount": 2000
+        "base_amount": amount
     }
     headers = {
         "content-type": "application/json",
         "pc": pc,
-        "X-SIGNATURE": "FigQsKwdws3HNNT3dPHYVU7vpYnsH2gpT90KAgAz86cNGVftFxcgnaKAS3PNbSriJJZEyLI2IcUqn/KbplEseA==",
-        "X-USERNAME": "zapataast@gmail.com"
+        "X-SIGNATURE": X_SIGNATURE,
+        "X-USERNAME": X_username
     }
 
-    response = requests.post(url, json=payload, headers=headers)
+    response = requests.post(url, json=payload, headers=headers,timeout=3)
 
     print(response.json())
 

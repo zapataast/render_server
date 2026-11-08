@@ -528,6 +528,7 @@ async function updateVideo(id) {
         ).value;
     const priceType = document.getElementById(`price-${id}`).value;
 
+
     if (!priceType) {
         alert("Эрхийн төрлөө сонгоно уу.");
         return;
@@ -541,14 +542,8 @@ async function updateVideo(id) {
 
         return;
     }
-    alert(
-        "Амжилттай хадгалагдлаа."
-    );
-     /*
 
-    try {
-
-        const response = await fetch(
+    const response = await fetch(
             `/api/admin/videos/${id}`,
             {
                 method: "PUT",
@@ -569,36 +564,10 @@ async function updateVideo(id) {
 
         const data =
             await response.json();
-
-
-        if (!data.success) {
-
-            alert(
-                data.message ||
-                "Хадгалахад алдаа гарлаа."
-            );
-
-            return;
-        }
-
-
-        alert(
-            "Амжилттай хадгалагдлаа."
-        );
-
-        await loadVideos();
-
-
-    } catch (error) {
-
-        console.error(error);
-
-        alert(
-            "Server алдаа гарлаа."
-        );
-
-    }
-        */
+            console.log("data: " , data)
+    alert(
+        "Амжилттай хадгалагдлаа."
+    );
 
 }
 
@@ -656,77 +625,6 @@ async function deleteVideo(id) {
 
 }
 
-
-/* =========================================================
-   DELETE ALL
-========================================================= */
-
-async function deleteAllVideos() {
-
-    const confirmed = confirm(
-        "АНХААР!\n\n" +
-        "Videos collection доторх " +
-        "БҮХ бичлэгийг устгах уу?"
-    );
-
-    if (!confirmed) {
-        return;
-    }
-
-
-    const secondConfirm = confirm(
-        "Үнэхээр бүгдийг устгах уу?\n" +
-        "Энэ үйлдлийг буцаах боломжгүй."
-    );
-
-    if (!secondConfirm) {
-        return;
-    }
-
-
-    try {
-
-        const response = await fetch(
-            "/api/admin/videos",
-            {
-                method: "DELETE"
-            }
-        );
-
-
-        const data =
-            await response.json();
-
-
-        if (!data.success) {
-
-            alert(
-                data.message ||
-                "Алдаа гарлаа."
-            );
-
-            return;
-        }
-
-
-        alert(
-            data.message
-        );
-
-        await loadVideos();
-
-
-    } catch (error) {
-
-        console.error(error);
-
-        alert(
-            "Server алдаа гарлаа."
-        );
-
-    }
-
-}
 
 
 /* =========================================================

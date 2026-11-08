@@ -45,7 +45,7 @@ app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://localhost:27017/rend
 mongo_client = MongoClient(os.getenv("MONGO_URI"))
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "anime_db")
 
-paylink_url = os.getenv("paylink_url", "")
+
 from utils import *
 app.config["SESSION_TYPE"] = "mongodb"
 app.config["SESSION_MONGODB"] = mongo_client
@@ -88,7 +88,7 @@ DOWNLOAD_CATEGORIES = {
 }
 
 MAX_COVER_SIZE = 5 * 1024 * 1024
-VERCEL_RANGE_SIZE = 20 * 1024 * 1024  # 8 MB TELEGRAM butsaah hemjee 1 udaagiin
+VERCEL_RANGE_SIZE = 25 * 1024 * 1024  # 8 MB TELEGRAM butsaah hemjee 1 udaagiin
 ACTIVE_TTL = 90  # секунд. ping ирэхгүй бол сесс дууссанд тооцно
         
 AHEAD = 400          # секунд: одоогийн байрлалаас урагш зөвшөөрөх хэмжээ
@@ -1796,7 +1796,7 @@ def record_purchase(user_id, video_id, amount=0, payment_id=None, provider=None)
                     "video_id": video_oid,
                     "amount": amount,
                     "payment_id": payment_id,   # QPay invoice/transaction id
-                    "provider": provider,       # "qpay", "card" гэх мэт
+                    "provider": 'paylink',       # "qpay", "card" гэх мэт
                     "status": "paid",
                     "created_at": now,
                 }
@@ -1815,9 +1815,9 @@ def get_paid_video_ids(user_id, videos):
 
     video_ids = [v["_id"] for v in videos]
     purchases = purchases_collection.find(
-        {"user_id": user_id, "video_id": {"$in": video_ids}},
-        {"video_id": 1},
-    )
+    {"user_id": str(user_id), "video_id": {"$in": [str(v) for v in video_ids]}},
+    {"video_id": 1},
+)
     return {str(p["video_id"]) for p in purchases}
 
 
@@ -2449,25 +2449,16 @@ def anime_detail(anime_id):
                     genre["_id"]
                 )
 
-        created = record_purchase(
-            user_id=get_current_user().get('_id'),
-            video_id='6aed7c29ddc2ec421509a3ed',
-            amount=1000,
-            payment_id="TEST-PAYMENT-001",
-            provider="test",
-        )
 
         anime["genres"] = genres
         paid_ids = get_paid_video_ids(get_current_user().get('_id'), videos)
-        print("🐍 File: render_server/app.py | Line: 2462 | anime_detail ~ paid_ids",paid_ids)
 
         for v in videos:
             price_type = v.get("price_type", "free")
             is_paid = str(v["_id"]) in paid_ids     
 
-            print("🐍 File: render_server/app.py | Line: 2466 | anime_detail ~ is_paid",v["_id"], paid_ids , is_paid)
             locked = price_type != "free" and not is_paid
-            print("🐍 File: render_server/app.py | Line: 2468 | anime_detail ~ locked",locked)
+
 
             video_list.append({
                 "id": str(v["_id"]),
@@ -2486,9 +2477,8 @@ def anime_detail(anime_id):
         return render_template(
             "login.html"
         )
-@app.route("/payment/<video_id>")
+@app.route("/payment/create/<video_id>",methods=["GET",'POST'])
 def payment(video_id):
-    print("🐍 File: render_server/app.py | Line: 2422 | undefined ~ video_id",video_id)
     video = videos_collection.find_one({"_id": ObjectId(video_id)})
     if not video:
         abort(404)
@@ -2496,8 +2486,96 @@ def payment(video_id):
     if not session.get("user_id"):
         return redirect(f"/login?next=/payment/{video_id}")
 
-    return render_template("payment.html", video=video)
+    chars = "ABCDEF123456789"
+    payment_id = 'Нэхэмжлэх: ' + "".join(secrets.choice(chars) for _ in range(6))
+
+    result = create_invoice_paylink(1000, payment_id)
     
+    if result.get("response_code") != "RC000000":
+        abort(502, description="Paylink invoice үүсгэхэд алдаа гарлаа.")
+    
+    payment_link = result.get("response", {}).get("payment_link")
+
+    
+    res = purchases_collection.update_one(
+            {"user_id": session.get("user_id"), "video_id": video_id},
+            {
+                "$setOnInsert": {
+                    "user_id": session.get("user_id"),
+                    "video_id": video_id,
+                    "amount": 1000,
+                    "payment_id": result.get("response", {}).get("invid"),   # QPay invoice/transaction id
+                    "provider": 'paylink',       # "qpay", "card" гэх мэт
+                    'msg' : payment_id,
+                    "status": "pending",
+                    "created_at": datetime.now(timezone.utc),
+                }
+            },
+            upsert=True,
+        )
+    if not res:
+        abort(502, description='Purchase line -д нэмж чадсангүй')
+
+    if not payment_link:
+        abort(502, description="Paylink төлбөрийн холбоос олдсонгүй.")
+
+    return jsonify({
+    "payment_id": str(payment_id),
+    "payment_link": payment_link,
+}), 200
+
+@app.route("/payment/check/<msg>", methods=["GET"])
+def check_payment(msg):
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"error": "Нэвтрээгүй байна"}), 401
+
+    purchase = purchases_collection.find_one({
+        "user_id": user_id,
+        "msg": msg
+    })
+    if not purchase:
+        return jsonify({"error": "Төлбөр олдсонгүй"}), 404
+
+    if purchase.get("status") == "paid":
+        return jsonify({
+            "status": "paid",
+            "video_id": purchase["video_id"]
+        })
+
+    if purchase.get("status") != "pending":
+        return jsonify({"status": purchase.get("status")})
+
+    payment_id = purchase.get("payment_id")
+    if not payment_id:
+        return jsonify({"error": "Payment ID олдсонгүй"}), 400
+
+    
+    result = check_invoice_paylink(payment_id)  #payment_id
+
+    if result.get("response_code") != "RC000000":
+        return jsonify({"error": "Paylink шалгахад алдаа гарлаа"}), 502
+
+    data = result.get("response") or {}
+    status = str(data.get("status", "")).lower()
+
+    if status == "paid":
+        purchases_collection.update_one(
+            {"_id": purchase["_id"], "status": "pending"},
+            {"$set": {
+                "status": "paid",
+                "paid_at": datetime.now(timezone.utc)
+            }}
+        )
+
+        return jsonify({
+            "status": "paid",
+            "video_id": purchase["video_id"]
+        })
+
+    return jsonify({"status": "pending"})
+
+
 def position_ok(user_id, start, file_size, duration):
     bitrate = file_size / duration
     req_sec = start / bitrate
@@ -3450,8 +3528,9 @@ def admin_update_video(video_id):
         "episode_number"
     )
     priceType = data.get(
-            "priceType"
+            "priceType", 'free'
         )
+    print("🐍 File: render_server/app.py | Line: 3533 | admin_update_video ~ priceType",priceType)
     if not title:
 
         return jsonify({

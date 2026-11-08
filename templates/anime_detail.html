@@ -1,370 +1,445 @@
+
 <!DOCTYPE html>
 <html lang="mn">
-
 <head>
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ anime.name }}</title>
-
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-
 
 <body class="bg-slate-950 text-white">
 
 <div class="max-w-7xl mx-auto px-5 py-8">
 
-
     <!-- BACK -->
-
-    <a
-        href="/"
-
-        class="
-            inline-flex
-            items-center
-            text-slate-400
-            hover:text-white
-            mb-7
-            transition
-        "
-    >
+    <a href="/" class="inline-flex items-center text-slate-400 hover:text-white mb-7 transition">
         ← Буцах
     </a>
 
-
-    <!-- ================================================= -->
     <!-- ANIME INFO -->
-    <!-- ================================================= -->
-
-    <div
-        class="
-            grid
-            grid-cols-1
-            md:grid-cols-[240px_1fr]
-            gap-8
-            mb-12
-        "
-    >
+    <div class="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-8 mb-12">
 
         <!-- POSTER -->
-
         <div>
-
             {% if anime.image_url %}
-
-            <img
-                src="{{ anime.image_url }}"
-                alt="{{ anime.name }}"
-
-                class="
-                    w-full
-                    max-w-[240px]
-                    rounded-2xl
-                    shadow-xl
-                "
-            >
-
+            <img src="{{ anime.image_url }}" alt="{{ anime.name }}"
+                 class="w-full max-w-[240px] rounded-2xl shadow-xl">
             {% endif %}
-
         </div>
 
-
         <!-- INFO -->
-
         <div>
+            <h1 class="text-3xl md:text-4xl font-bold">{{ anime.name }}</h1>
 
-            <h1
-                class="
-                    text-3xl
-                    md:text-4xl
-                    font-bold
-                "
-            >
-                {{ anime.name }}
-            </h1>
-
-
-            <div
-                class="
-                    flex
-                    flex-wrap
-                    gap-2
-                    mt-4
-                "
-            >
-
-                <span
-                    class="
-                        bg-slate-800
-                        px-3
-                        py-1
-                        rounded-full
-                        text-sm
-                    "
-                >
+            <div class="flex flex-wrap gap-2 mt-4">
+                <span class="bg-slate-800 px-3 py-1 rounded-full text-sm">
                     {{ anime.anime_type|upper }}
                 </span>
 
-
                 {% if anime.episodes %}
-
-                <span
-                    class="
-                        bg-slate-800
-                        px-3
-                        py-1
-                        rounded-full
-                        text-sm
-                    "
-                >
+                <span class="bg-slate-800 px-3 py-1 rounded-full text-sm">
                     {{ anime.episodes }} анги
                 </span>
-
                 {% endif %}
-
 
                 {% if anime.status %}
-
-                <span
-                    class="
-                        bg-slate-800
-                        px-3
-                        py-1
-                        rounded-full
-                        text-sm
-                    "
-                >
+                <span class="bg-slate-800 px-3 py-1 rounded-full text-sm">
                     {{ anime.status }}
                 </span>
-
                 {% endif %}
-
             </div>
-
 
             {% if anime.description %}
-
-            <p
-                class="
-                    text-slate-300
-                    mt-6
-                    text-justify
-                    leading-7
-                    max-w-4xl
-                "
-            >
+            <p class="text-slate-300 mt-6 text-justify leading-7 max-w-4xl">
                 {{ anime.description }}
             </p>
-            
             {% endif %}
 
+            <!-- GENRES -->
             {% if anime.genres %}
+            <div class="mt-5 flex flex-wrap gap-2">
+                {% for genre in anime.genres %}
+                <span class="inline-flex items-center px-3 py-1.5 rounded-full border text-sm font-medium
+                    {{
+                        loop.cycle(
+                            'bg-violet-500/15 text-violet-300 border-violet-500/30',
+                            'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+                            'bg-rose-500/15 text-rose-300 border-rose-500/30',
+                            'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+                            'bg-amber-500/15 text-amber-300 border-amber-500/30',
+                            'bg-sky-500/15 text-sky-300 border-sky-500/30'
+                        )
+                    }}">
+                    {{ genre.name }}
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
 
-<div
-    class="
-        mt-5
-        flex
-        flex-wrap
-        gap-2
-    "
->
-
-    {% for genre in anime.genres %}
-
-    <span
-        class="
-            inline-flex
-            items-center
-
-            px-3
-            py-1.5
-
-            rounded-full
-            border
-
-            text-sm
-            font-medium
-
-            {{
-                loop.cycle(
-                    'bg-violet-500/15 text-violet-300 border-violet-500/30',
-                    'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
-                    'bg-rose-500/15 text-rose-300 border-rose-500/30',
-                    'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-                    'bg-amber-500/15 text-amber-300 border-amber-500/30',
-                    'bg-sky-500/15 text-sky-300 border-sky-500/30'
-                )
-            }}
-        "
-    >
-        {{ genre.name }}
-    </span>
-
-    {% endfor %}
-
-</div>
-
-{% endif %}
-
-
-            <div
-                class="
-                    mt-6
-                    grid
-                    grid-cols-1
-                    sm:grid-cols-2
-                    gap-3
-                    text-sm
-                "
-            >
-
+            <!-- DETAILS -->
+            <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                 {% if anime.studios %}
-
                 <div>
-                    <span class="text-slate-500">
-                        Studio:
-                    </span>
-
+                    <span class="text-slate-500">Studio:</span>
                     {{ anime.studios }}
                 </div>
-
                 {% endif %}
-
 
                 {% if anime.premiered %}
-
                 <div>
-                    <span class="text-slate-500">
-                        Premiered:
-                    </span>
-
+                    <span class="text-slate-500">Premiered:</span>
                     {{ anime.premiered }}
                 </div>
-
                 {% endif %}
-
 
                 {% if anime.broadcast %}
-
                 <div>
-                    <span class="text-slate-500">
-                        Broadcast:
-                    </span>
-
+                    <span class="text-slate-500">Broadcast:</span>
                     {{ anime.broadcast }}
                 </div>
-
                 {% endif %}
-
             </div>
-
         </div>
-
     </div>
 
-
-    <!-- ================================================= -->
     <!-- EPISODES -->
-    <!-- ================================================= -->
-
     <div>
-
-        <div
-            class="
-                flex
-                items-end
-                justify-between
-                mb-5
-            "
-        >
-
-            <h2 class="text-2xl font-bold">
-                Ангиуд
-            </h2>
-
+        <div class="flex items-end justify-between mb-5">
+            <h2 class="text-2xl font-bold">Ангиуд</h2>
             <span class="text-sm text-slate-500">
                 {{ videos|length }} анги
             </span>
-
         </div>
 
-
         {% if videos %}
-
-        <div
-            class="
-                grid
-                grid-cols-2
-                sm:grid-cols-3
-                md:grid-cols-4
-                lg:grid-cols-5
-                xl:grid-cols-6
-                gap-3
-            "
-        >
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
 
             {% for video in videos %}
 
-<a
-    href="{{ '/payment/' ~ video.id if video.locked else '/watch/' ~ video.id }}"
-    class="
-        relative bg-slate-900 hover:bg-slate-800 border rounded-xl p-4 transition group
-        {{ 'border-amber-500/40 hover:border-amber-400' if video.locked else 'border-slate-800 hover:border-slate-600' }}
-    "
->
+            {% if video.locked %}
+            <!-- LOCKED EPISODE -->
+            <button type="button"
+                data-video-id="{{ video.id }}"
+                data-video-title="{{ video.title or ('Анги ' ~ (video.episode_number or loop.index)) }}"
+                onclick="openPayModal(this)"
+                class="relative w-full text-left bg-slate-900 hover:bg-slate-800 border rounded-xl p-4 transition group border-amber-500/40 hover:border-amber-400">
+            {% else %}
+            <!-- UNLOCKED EPISODE -->
+            <a href="/watch/{{ video.id }}"
+               class="relative block bg-slate-900 hover:bg-slate-800 border rounded-xl p-4 transition group border-slate-800 hover:border-slate-600">
+            {% endif %}
 
-    {% if video.locked %}
-    <span class="absolute top-2 right-2 text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full">
-        🔒 {{ video.price_type|upper }}
-    </span>
-    {% elif video.price_type != 'free' and video.is_paid %}
-    <span class="absolute top-2 right-2 text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-        ✓ Авсан
-    </span>
-    {% endif %}
+                {% if video.locked %}
+                <span class="absolute top-2 right-2 text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                    🔒 {{ video.price_type|upper }}
+                </span>
+                {% elif video.price_type != 'free' and video.is_paid %}
+                <span class="absolute top-2 right-2 text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                    ✓ Авсан
+                </span>
+                {% endif %}
 
-    <div class="text-xs text-slate-500">EPISODE</div>
-    <div class="text-lg font-bold mt-1 group-hover:text-blue-400">
-        {{ video.episode_number or loop.index }}
-    </div>
+                <div class="text-xs text-slate-500">EPISODE</div>
 
-    {% if video.title %}
-    <div class="text-xs text-slate-400 mt-2 truncate">{{ video.title }}</div>
-    {% endif %}
-</a>
+                <div class="text-lg font-bold mt-1 group-hover:text-blue-400">
+                    {{ video.episode_number or loop.index }}
+                </div>
 
-{% endfor %}
+                {% if video.title %}
+                <div class="text-xs text-slate-400 mt-2 truncate">
+                    {{ video.title }}
+                </div>
+                {% endif %}
 
+            {% if video.locked %}
+            </button>
+            {% else %}
+            </a>
+            {% endif %}
+
+            {% endfor %}
         </div>
-
 
         {% else %}
-
-        <div
-            class="
-                bg-slate-900
-                rounded-2xl
-                border
-                border-slate-800
-                p-12
-                text-center
-                text-slate-500
-            "
-        >
+        <div class="bg-slate-900 rounded-2xl border border-slate-800 p-12 text-center text-slate-500">
             Одоогоор анги оруулаагүй байна.
         </div>
-
         {% endif %}
-
     </div>
 
 </div>
+
+
+<!-- ================================================= -->
+<!-- PAYMENT MODAL -->
+<!-- ================================================= -->
+
+<div id="payModal"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="payModalHeading"
+     class="hidden fixed inset-0 z-50 items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+     onclick="if (event.target === this) closePayModal()">
+
+    <div class="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl">
+
+        <!-- HEADER -->
+        <div class="flex items-start justify-between gap-4 mb-2">
+            <h3 id="payModalHeading" class="text-xl font-bold text-white">
+                Төлбөрийн хэлбэр
+            </h3>
+
+            <button type="button" onclick="closePayModal()"
+                    aria-label="Хаах"
+                    class="text-slate-400 hover:text-white text-2xl leading-none">
+                &times;
+            </button>
+        </div>
+
+        <!-- VIDEO TITLE -->
+        <p id="payModalTitle" class="text-sm text-slate-400 mb-5"></p>
+
+        <!-- PAYMENT METHODS -->
+        <div class="space-y-3">
+
+            <!-- PAYLINK: ACTIVE -->
+                <button type="button" id="paylinkBtn" onclick="startPaylinkPayment()"
+                class="w-full flex items-center justify-between text-left rounded-xl border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 px-4 py-4 transition">
+                <div>
+                    <div class="font-semibold text-white">Paylink</div>
+                    <div class="text-xs text-slate-400 mt-1">Онлайнаар төлөх</div>
+                </div>
+                <span class="text-amber-400 text-xl">&rarr;</span>
+                </button>
+
+                <!-- PAYMENT STATUS -->
+                <div id="paymentStatus" class="hidden mt-4 p-4 rounded-xl bg-slate-800 border border-slate-700">
+                <div class="flex items-center gap-3">
+                    <span id="paymentSpinner" class="animate-spin h-4 w-4 rounded-full border-2 border-amber-400 border-t-transparent"></span>
+                    <span id="paymentStatusText" class="text-sm text-slate-300">
+                        Төлбөр хүлээж байна...
+                    </span>
+                </div>
+                </div>
+
+            <!-- BANK TRANSFER: DISABLED -->
+            <button type="button" disabled
+                    class="w-full flex items-center justify-between text-left rounded-xl border border-slate-700 bg-slate-800/40 px-4 py-4 opacity-50 cursor-not-allowed">
+                <span class="font-medium">Данс руу шилжүүлэх</span>
+                <span class="text-xs">Удахгүй</span>
+            </button>
+
+            <!-- CARD: DISABLED -->
+            <button type="button" disabled
+                    class="w-full flex items-center justify-between text-left rounded-xl border border-slate-700 bg-slate-800/40 px-4 py-4 opacity-50 cursor-not-allowed">
+                <span class="font-medium">Карт холбох</span>
+                <span class="text-xs">Удахгүй</span>
+            </button>
+
+        </div>
+
+        <!-- FOOTER -->
+        <p class="text-center text-xs text-slate-500 mt-5">
+            Төлбөрийн хэлбэрээ сонгож үргэлжлүүлнэ үү.
+        </p>
+    </div>
+</div>
+
+
+<!-- ================================================= -->
+<!-- JAVASCRIPT -->
+<!-- ================================================= -->
+
+<script>
+    const payModal = document.getElementById("payModal");
+    const payModalTitle = document.getElementById("payModalTitle");
+    const paylinkBtn = document.getElementById("paylinkBtn");
+    const paymentStatus = document.getElementById("paymentStatus");
+    const paymentStatusText = document.getElementById("paymentStatusText");
+    const paymentSpinner = document.getElementById("paymentSpinner");
+
+    let selectedVideoId = null;
+    let currentPaymentId = null;
+    let paymentTimer = null;
+    let checkingPayment = false;
+    let creatingPayment = false;
+
+    function setPaymentStatus(message, loading = true) {
+        paymentStatus.classList.remove("hidden");
+        paymentStatusText.textContent = message;
+        paymentSpinner.classList.toggle("hidden", !loading);
+    }
+
+    function openPayModal(button) {
+        selectedVideoId = button.dataset.videoId;
+        payModalTitle.textContent = button.dataset.videoTitle || "Анги";
+
+        payModal.classList.remove("hidden");
+        payModal.classList.add("flex");
+        document.body.classList.add("overflow-hidden");
+
+        paymentStatus.classList.add("hidden");
+        if (currentPaymentId) {
+            setPaymentStatus("Өмнөх төлбөрийн төлөвийг шалгаж байна...");
+        }
+    }
+
+    function closePayModal() {
+        payModal.classList.add("hidden");
+        payModal.classList.remove("flex");
+        document.body.classList.remove("overflow-hidden");
+
+        // Modal хаасан ч төлбөр шалгах ажиллагааг зогсоохгүй.
+    }
+
+    async function startPaylinkPayment() {
+        if (!selectedVideoId || creatingPayment) return;
+
+        creatingPayment = true;
+        paylinkBtn.disabled = true;
+        paylinkBtn.classList.add("opacity-60");
+
+        // User click дотор шууд tab нээнэ.
+        // Ингэснээр browser popup blocker-т өртөх магадлал багасна.
+        const newTab = window.open("about:blank", "_blank");
+
+        if (newTab) {
+            newTab.opener = null;
+            newTab.document.title = "Paylink";
+            newTab.document.body.textContent = "Paylink төлбөрийн хуудас нээж байна...";
+        }
+
+        setPaymentStatus("Төлбөрийн нэхэмжлэх үүсгэж байна...");
+
+        try {
+            const response = await fetch(
+                "/payment/create/" + encodeURIComponent(selectedVideoId),
+                {
+                    method: "POST",
+                    credentials: "same-origin"
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Invoice үүсгэхэд алдаа гарлаа.");
+            }
+
+            currentPaymentId = data.payment_id;
+
+            // Шинэ tab дээр Paylink нээх.
+            if (newTab && !newTab.closed) {
+                newTab.location.replace(data.payment_link);
+            } else {
+                setPaymentStatus(
+                    "Шинэ tab нээгдсэнгүй. Browser popup зөвшөөрлийг шалгана уу.",
+                    false
+                );
+
+                // Browser хориглосон үед хэрэглэгч өөрөө дарах холбоос.
+                showPaymentLink(data.payment_link);
+            }
+
+            setPaymentStatus("Төлбөр хүлээж байна...");
+
+            // Эхний шалгалт, дараа нь 5 секунд тутам.
+            startPaymentPolling(currentPaymentId);
+
+        } catch (error) {
+            if (newTab && !newTab.closed) newTab.close();
+            setPaymentStatus(error.message, false);
+            console.error("Paylink error:", error);
+        } finally {
+            creatingPayment = false;
+            paylinkBtn.disabled = false;
+            paylinkBtn.classList.remove("opacity-60");
+        }
+    }
+
+    function showPaymentLink(url) {
+        let link = document.getElementById("manualPaylink");
+
+        if (!link) {
+            link = document.createElement("a");
+            link.id = "manualPaylink";
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.textContent = "Paylink хуудсыг нээх";
+            link.className = "block mt-3 text-center text-amber-400 underline";
+            paymentStatus.appendChild(link);
+        }
+
+        link.href = url;
+        link.classList.remove("hidden");
+    }
+
+    function startPaymentPolling(paymentId) {
+        if (paymentTimer) clearInterval(paymentTimer);
+
+        checkPayment(paymentId);
+
+        paymentTimer = setInterval(() => {
+            checkPayment(paymentId);
+        }, 5000);
+    }
+
+    async function checkPayment(paymentId) {
+        if (checkingPayment || paymentId !== currentPaymentId) return;
+
+        checkingPayment = true;
+
+        try {
+            const response = await fetch(
+                "/payment/check/" + encodeURIComponent(paymentId),
+                {
+                    credentials: "same-origin",
+                    cache: "no-store"
+                }
+            );
+
+            const data = await response.json();
+            console.log(">>>>>>> ", data)
+
+            if (!response.ok) {
+                throw new Error(data.error || "Төлбөр шалгахад алдаа гарлаа.");
+            }
+
+            if (data.status === "paid") {
+                clearInterval(paymentTimer);
+                paymentTimer = null;
+
+                currentPaymentId = null;
+
+                setPaymentStatus("Төлбөр амжилттай төлөгдлөө!", false);
+                paymentStatusText.classList.add("text-emerald-400");
+
+                // Backend төлбөрийг баталгаажуулсан.
+                // Одоо тухайн ангийг нээнэ.
+                window.location.href = "/watch/" + encodeURIComponent(data.video_id);
+            } else {
+                setPaymentStatus("Төлбөр хүлээж байна...");
+            }
+
+        } catch (error) {
+            // Түр зуурын network error гарсан ч polling үргэлжилнэ.
+            console.error("Payment check error:", error);
+            setPaymentStatus("Төлбөр шалгахад алдаа гарлаа. Дахин шалгана...", false);
+        } finally {
+            checkingPayment = false;
+        }
+    }
+
+    // Paylink tab-аас буцаж ирэхэд шууд шалгана.
+    window.addEventListener("focus", () => {
+        if (currentPaymentId) checkPayment(currentPaymentId);
+    });
+
+    document.addEventListener("keydown", e => {
+        if (e.key === "Escape") closePayModal();
+    });
+</script>
 
 </body>
 </html>
