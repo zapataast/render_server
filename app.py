@@ -2748,7 +2748,7 @@ def stream_video(video_id):
         print(
             f"[STREAM] Range={range_header} "
             f"bytes={content_length:,} "
-            f"start={start:,} end={end:,}"
+            f"start={start:,} end={500:,}"
         )
     # =====================================================
     # RESPONSE HEADERS

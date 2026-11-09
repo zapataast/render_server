@@ -20,6 +20,22 @@
     />
    
     <style>
+        .codec-warning{
+  display:flex; gap:14px; align-items:flex-start;
+  background:#fff5d6; border:1px solid #f3dc8c; border-radius:14px;
+  padding:16px 20px; margin:16px 0; color:#5a4300;
+}
+.codec-warning[hidden]{display:none}
+.cw-icon{
+  flex:0 0 36px; height:36px; border-radius:50%;
+  background:#f6c445; color:#fff; font-weight:700; font-size:20px;
+  display:flex; align-items:center; justify-content:center;
+}
+.cw-title{font-weight:700; margin-bottom:4px}
+.cw-text{font-size:14px; line-height:1.5}
+.cw-text ul{margin:6px 0 8px; padding-left:18px}
+.cw-link{color:#2f6fed; font-weight:600; font-size:14px; text-decoration:none}
+.cw-link:hover{text-decoration:underline}
         * {
             box-sizing: border-box;
         }
@@ -402,6 +418,20 @@
 </div>
     </div>
 
+
+        <div id="codecWarning" class="codec-warning" hidden>
+  <div class="cw-icon">!</div>
+  <div class="cw-body">
+    <div class="cw-title">Утсаар үзэхэд анхааарах зүйлс</div>
+    <div class="cw-text">
+      <ul>
+        <li><b>iPhone / iPad:</b> <b>Safari</b> хөтөч ашиглана уу. H.265 (HEVC)-г iOS 11-ээс дээш хувилбар дэмждэг.</li>
+        <li><b>Android:</b> <b>Google Chrome</b> ашиглана уу. H.265 нь төхөөрөмжийн чипээс шалтгаалах тул хуучин, хямд утсан дээр тоглохгүй байж болно.</li>
+      </ul>
+    </div>
+    <a class="cw-link" href="https://www.google.com/chrome/" target="_blank" rel="noopener">Google Chrome татах ↗</a>
+  </div>
+</div>
 </div>
 
 <script
@@ -707,7 +737,17 @@
 
   
 </script>
-
+<script>
+(function () {
+  var v = document.createElement('video');
+  var hevc = v.canPlayType('video/mp4; codecs="hvc1.1.6.L93.B0"');
+  var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  // H.265 дэмжихгүй эсвэл mobile бол анхааруулга харуулна
+  if (!hevc || isMobile) {
+    document.getElementById('codecWarning').hidden = false;
+  }
+})();
+</script>
 </body>
 </html>
 
