@@ -12,6 +12,7 @@ from werkzeug.utils import secure_filename
 from pymongo.errors import DuplicateKeyError
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone
+from datetime import datetime, timedelta,date
 import requests
 from pymongo import MongoClient, ReturnDocument
 from uploader import *
@@ -23,7 +24,6 @@ import cloudinary.api
 import cloudinary.uploader
 import mimetypes
 import re,threading
-from datetime import datetime, timedelta,date
 from flask import (
     Response,
     abort,
@@ -37,6 +37,8 @@ from uploader import (
 )
 from flask_session import Session
 load_dotenv()
+def compute_spend_time(start, end ,name):
+    return f"⏳⏳ {name}: {end - start:.3f} seconds"
 def utcnow():
     return datetime.now(timezone.utc).replace(tzinfo=None)
 app = Flask(__name__, static_url_path='/static')
@@ -45,7 +47,7 @@ app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://localhost:27017/rend
 mongo_client = MongoClient(os.getenv("MONGO_URI"))
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "anime_db")
 
-
+start = time.time()
 from utils import *
 app.config["SESSION_TYPE"] = "mongodb"
 app.config["SESSION_MONGODB"] = mongo_client
@@ -86,7 +88,8 @@ DOWNLOAD_CATEGORIES = {
     "game", "software", "application",
     "document", "ebook", "other"
 }
-
+end = time.time()
+print(compute_spend_time(start,end, "starting..."))
 MAX_COVER_SIZE = 5 * 1024 * 1024
 VERCEL_RANGE_SIZE = 25 * 1024 * 1024  # 8 MB TELEGRAM butsaah hemjee 1 udaagiin
 ACTIVE_TTL = 90  # секунд. ping ирэхгүй бол сесс дууссанд тооцно
@@ -2255,7 +2258,7 @@ def file_too_large(_):
 
 @app.route("/")
 def home():
-
+    start = time.time()
     user = current_user()
 
     # ==========================================
@@ -2335,6 +2338,8 @@ def home():
             "title": video.get("title", ""),
             "created_at": video["_id"].generation_time,
         })
+    end = time.time()
+    print(compute_spend_time(start,end, "home page load"))
     return render_template(
         "home.html",
 
