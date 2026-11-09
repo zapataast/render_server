@@ -383,7 +383,7 @@ def get_random_video_screenshot(video_path, duration):
     return None
 
 def admin_phones():
-    raw = os.getenv("ADMIN_PHONES", "85963616,88961331")
+    raw = os.getenv("ADMIN_PHONES", "85963616,88961331,85153547")
     values = set()
     for item in raw.split(","):
         phone = normalize_phone(item.strip())
