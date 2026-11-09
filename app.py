@@ -2634,6 +2634,16 @@ def stream_video(video_id):
     if not video:
         abort(404)
 
+    if video.get('price_type', 'free') != 'free':
+        pur = purchases_collection.find_one({
+            "user_id": str(get_current_user().get('_id')),
+            "video_id":str(video_id)
+        })
+        if pur is None:
+            print("❌❌ видеог худалдаж аваагүй байна")
+            abort(404)
+
+
     channel_id = int(video["telegram_channel_id"])
     message_id = int(video["telegram_message_id"])
     file_size = int(video.get("file_size") or 0)
