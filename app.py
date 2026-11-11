@@ -4689,7 +4689,7 @@ def admin_upload():
             "file_type": file_type,
             "telegram": telegram_data,
             "cover": cover_data,
-            "is_published": False,
+            "is_published": True,
             "download_count": 0,
             "created_at": now,
             "updated_at": now
