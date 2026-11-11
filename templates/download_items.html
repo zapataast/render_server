@@ -585,6 +585,7 @@
     function openEdit(item) {
         $("editId").value = item._id;
         $("editTitle").value = item.title || "";
+        $("editCategory").value = item.category || "other";
         $("editDescription").value = item.description || "";
         $("editAccessType").value = item.access_type === "paid" ? "paid" : "free";
         $("editPrice").value = item.price || 0;
@@ -623,6 +624,7 @@
         const data = {
             title: $("editTitle").value.trim(),
             description: $("editDescription").value.trim(),
+            category: $("editCategory").value,      // <-- NEMNE
             access_type: $("editAccessType").value,
             price: $("editAccessType").value === "paid" ? Number($("editPrice").value) : 0,
             is_published: $("editPublished").checked
