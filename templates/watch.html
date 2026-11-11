@@ -9,7 +9,7 @@
         name="viewport"
         content="width=device-width, initial-scale=1.0"
     >
-
+    
     <title>
         {{ video.title or "Anime Player" }}
     </title>
@@ -18,7 +18,7 @@
         rel="stylesheet"
         href="https://cdn.plyr.io/3.7.8/plyr.css"
     />
-   
+    <link rel="icon" type="image/png" href="{{url_for('static', filename='site/log.PNG')}}">
     <style>
         .codec-warning{
   display:flex; gap:14px; align-items:flex-start;

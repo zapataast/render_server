@@ -2252,10 +2252,60 @@ def file_too_large(_):
     flash(f"Файл хэт том байна. Max {MAX_UPLOAD_MB}MB.", "danger")
     return redirect(request.referrer or url_for("dashboard"))
 
+ANIME_PAGE_SIZE = 18
 
+def fetch_anime_page(q="", anime_type="", page=1):
+    query = {"active": True}
 
+    if q:
+        pattern = {"$regex": re.escape(q), "$options": "i"}
+        query["$or"] = [
+            {"name": pattern},
+            {"name_mn": pattern},
+        ]
 
+    if anime_type:
+        query["anime_type"] = {
+            "$regex": f"^{re.escape(anime_type)}$",
+            "$options": "i",
+        }
 
+    skip = (page - 1) * ANIME_PAGE_SIZE
+
+    # 1 ширхэг илүү авч, дараагийн хуудас байгаа эсэхийг мэднэ
+    docs = list(
+        anime_collection.find(query)
+        .sort([("created_at", -1), ("_id", -1)])
+        .skip(skip)
+        .limit(ANIME_PAGE_SIZE + 1)
+    )
+
+    has_more = len(docs) > ANIME_PAGE_SIZE
+    docs = docs[:ANIME_PAGE_SIZE]
+
+    for anime in docs:
+        anime["id"] = str(anime["_id"])
+
+    return docs, has_more
+@app.route("/api/anime")
+def api_anime():
+    q = request.args.get("q", "").strip()[:100]
+    anime_type = request.args.get("type", "").strip()[:20]
+
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+    except ValueError:
+        page = 1
+
+    docs, has_more = fetch_anime_page(q, anime_type, page)
+
+    return jsonify({
+        "success": True,
+        "html": render_template("_anime_cards.html", anime_list=docs),
+        "count": len(docs),
+        "has_more": has_more,
+        "page": page,
+    })
 @app.route("/")
 def home():
     start = time.time()
@@ -2290,16 +2340,7 @@ def home():
             slide["_id"]
         )
 
-    anime_list = list(
-        anime_collection.find(
-            {
-                "active": True
-            }
-        ).sort(
-            "created_at",
-            -1
-        )
-    )
+    anime_list, has_more = fetch_anime_page("", "", 1)
 
     for anime in anime_list:
         anime["id"] = str(anime["_id"])
@@ -2313,11 +2354,30 @@ def home():
             "anime_id": {"$ne": None}
         }).sort("_id", -1).limit(10)
     )
+    # latest video-uudiin anime id-nuud (davhardsan ni negeer)
+    anime_ids = set()
+    for v in latest_videos:
+        raw_id = v.get("anime_id")
+        if raw_id:
+            anime_ids.add(str(raw_id))
+    # ObjectId bolgoj hurvuulne (buruu format-iig algasna)
+    object_ids = []
+    for aid in anime_ids:
+        try:
+            object_ids.append(ObjectId(aid))
+        except Exception:
+            pass
 
-    anime_map = {
-        str(anime["_id"]): anime
-        for anime in anime_list
-    }
+    anime_map = {}
+    if object_ids:
+        anime_map = {
+            str(a["_id"]): a
+            for a in anime_collection.find({
+                "_id": {"$in": object_ids},
+                "active": True
+            })
+        }
+
 
     latest_episodes = []
 
@@ -2346,6 +2406,7 @@ def home():
         user=user,
         slides=slides,
         anime_list=anime_list,
+        has_more=has_more,  
         latest_episodes=latest_episodes,
         comments=comments,
         display_phone=display_phone,

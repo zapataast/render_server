@@ -1,0 +1,29 @@
+{% for anime in anime_list %}
+<a href="/anime/{{ anime.id }}"
+   class="anime-card group block rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 hover:border-slate-600 hover:-translate-y-1 transition duration-200">
+
+    <div class="aspect-[2/3] bg-slate-800 overflow-hidden relative">
+        {% if anime.image_url %}
+        <img src="{{ anime.image_url }}" alt="{{ anime.name }}" loading="lazy"
+             class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+        {% else %}
+        <div class="w-full h-full flex items-center justify-center text-5xl text-slate-600">🎬</div>
+        {% endif %}
+
+        {% if anime.status == "airing" %}
+        <span class="absolute top-3 left-3 text-xs font-semibold bg-green-500 text-white px-2.5 py-1 rounded-full">Airing</span>
+        {% endif %}
+    </div>
+
+    <div class="p-4">
+        <h2 class="font-bold text-base leading-5 line-clamp-2">{{ anime.name }}</h2>
+        <div class="mt-2 text-xs text-slate-400 flex gap-2">
+            <span>{{ anime.anime_type|upper }}</span>
+            {% if anime.episodes %}
+            <span>•</span>
+            <span>{{ anime.episodes }} анги</span>
+            {% endif %}
+        </div>
+    </div>
+</a>
+{% endfor %}
