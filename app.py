@@ -4524,6 +4524,7 @@ def admin_upload():
     title = request.form.get("title", "").strip()
     description = request.form.get("description", "").strip()
     category = request.form.get("category", "other").strip().lower()
+    print("🐍 File: render_server/app.py | Line: 4527 | admin_upload ~ category",category)
     access_type = request.form.get("access_type", "free").strip().lower()
     storage_type = request.form.get("storage_type", "telegram").strip().lower()
     price_raw = request.form.get("price", "0").strip()
@@ -4693,6 +4694,7 @@ def admin_upload():
             "created_at": now,
             "updated_at": now
         }
+        print("🐍 File: render_server/app.py | Line: 4697 | admin_upload ~ item",item)
 
         result = zip_files.insert_one(item)
         mongo_saved = True
@@ -4863,6 +4865,7 @@ def update_download_item(item_id):
         "is_published": is_published,
         "updated_at": datetime.now(timezone.utc)
     }
+    print("🐍 File: render_server/app.py | Line: 4867 | update_download_item ~ update_data",update_data)
 
     try:
         result = zip_files.update_one(
@@ -5045,9 +5048,12 @@ def delete_download_item(item_id):
             "message": "Item устгахад алдаа гарлаа."
         }), 500
 
+import re
+
 @app.route("/software")
 def software_page():
-    q = request.args.get("q", "").strip()
+    user = current_user()          # <-- NEMNE
+    q = request.args.get("q", "").strip()[:100]
     category = request.args.get("category", "").strip().lower()
 
     query = {
@@ -5059,7 +5065,8 @@ def software_page():
         query["category"] = category
 
     if q:
-        query["title"] = {"$regex": q, "$options": "i"}
+        query["title"] = {"$regex": re.escape(q), "$options": "i"}   # <-- re.escape
+
 
     items = list(
         zip_files.find(query).sort("created_at", -1)
@@ -5078,10 +5085,47 @@ def software_page():
         items=items,
         selected_category=category,
         search_query=q,
+        user=user,                                        # <-- NEMNE
+        is_admin_user=(is_admin(user) if user else False),  # <-- NEMNE
     )
+
+
+def format_file_size(size):
+    if not size:
+        return None
+    size = float(size)
+    if size < 1024 ** 2:
+        return f"{size / 1024:.1f} KB"
+    if size < 1024 ** 3:
+        return f"{size / 1024 ** 2:.1f} MB"
+    return f"{size / 1024 ** 3:.2f} GB"
+
+
+def user_can_download(user, item):
+    """Free bol hen ch tatna. Paid bol tulbur shalgana."""
+    if item.get("access_type") != "paid":
+        return True
+
+    if not user:
+        return False
+
+    if is_admin(user):
+        return True
+
+    # TODO: tanii tulburiin collection-oor shalgana, jishee:
+    # return purchases_collection.find_one({
+    #     "user_id": str(user["_id"]),
+    #     "item_id": str(item["_id"]),
+    #     "status": "paid",
+    # }) is not None
+    return False
 
 @app.route("/software/<item_id>")
 def software_detail_page(item_id):
+
+    user = get_current_user()
+    if not user:
+        return render_template("login.html")
     try:
         object_id = ObjectId(item_id)
     except Exception:
@@ -5098,10 +5142,71 @@ def software_detail_page(item_id):
 
     item["_id"] = str(item["_id"])
     item["cover_url"] = (item.get("cover") or {}).get("url")
+    item["file_size_text"] = format_file_size(
+        (item.get("telegram") or {}).get("file_size")
+    )
+
+    # Tostoi item-uud (neg category, ugui item-ees busad)
+    related_items = list(
+        zip_files.find({
+            "item_type": "download",
+            "is_published": True,
+            "category": item.get("category"),
+            "_id": {"$ne": object_id},
+        }).sort("created_at", -1).limit(6)
+    )
+
+    for rel in related_items:
+        rel["_id"] = str(rel["_id"])
+        rel["cover_url"] = (rel.get("cover") or {}).get("url")
+        rel["detail_url"] = url_for("software_detail_page", item_id=rel["_id"])
 
     return render_template(
         "software/detail.html",
-        item=item
+        item=item,
+        related_items=related_items,
+        has_access=user_can_download(user, item),
+        user=user,
+        is_admin_user=(is_admin(user) if user else False),
     )
+
+
+@app.route("/software/<item_id>/download")
+def software_download(item_id):
+    user = current_user()
+
+    try:
+        object_id = ObjectId(item_id)
+    except Exception:
+        abort(404)
+
+    item = zip_files.find_one({
+        "_id": object_id,
+        "item_type": "download",
+        "is_published": True,
+    })
+
+    if not item:
+        abort(404)
+
+    if not user_can_download(user, item):
+        if not user:
+            return redirect("/login")
+        abort(403)
+
+    zip_files.update_one(
+        {"_id": object_id},
+        {"$inc": {"download_count": 1}}
+    )
+
+    # External link bol shuud shiljuulne
+    if item.get("storage_type") == "external":
+        return redirect(item["external_url"])
+
+    # Telegram file
+    telegram = item.get("telegram") or {}
+    # TODO: tanii Telegram-aas file tatah function-oo end duudna
+    # (channel_id = telegram["channel_id"], message_id = telegram["message_id"])
+    abort(501)
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5004)), debug=False)

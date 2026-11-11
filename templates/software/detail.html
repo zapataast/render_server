@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="mn">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='site/log.PNG') }}">
+    <title>{{ item.title }} | Software</title>
+    <meta name="description" content="{{ (item.description or item.title)[:150] }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-slate-950 text-white">
+
+{% set category_labels = {
+    'game': '🎮 Game',
+    'software': '💻 Software',
+    'application': '📱 Application',
+    'document': '📄 Document',
+    'ebook': '📚 E-book',
+    'other': '📦 Other',
+} %}
+
+<!-- ===================== HEADER ===================== -->
+<header class="bg-[#070b1a] border-b border-white/10 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-5 h-16 flex items-center justify-between">
+
+        <div class="flex items-center gap-6">
+            <a href="/" class="text-xl font-black text-white">ANIME</a>
+            <a href="/software" class="text-sm font-semibold text-indigo-300">Software</a>
+        </div>
+
+        <div class="flex items-center gap-3">
+
+            {% if user %}
+
+            <div class="relative">
+                <button id="profile-button" type="button"
+                        class="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-white/10 transition">
+
+                    <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold">
+                        {{ (user.nickname or "U")[0]|upper }}
+                    </div>
+
+                    <div class="hidden sm:block text-left">
+                        <div class="text-sm font-semibold text-white">{{ user.nickname or "User" }}</div>
+                        <div class="text-xs text-slate-400">{{ user.phone }}</div>
+                    </div>
+
+                    <span class="text-slate-400 text-xs">▼</span>
+                </button>
+
+                <div id="profile-menu"
+                     class="hidden absolute right-0 top-full mt-2 w-52 rounded-xl bg-[#111827] border border-white/10 shadow-2xl overflow-hidden z-[100]">
+
+                    <a href="/profile" class="block px-4 py-3 text-sm text-slate-200 hover:bg-white/10">👤 Профайл</a>
+
+                    {% if is_admin_user %}
+                    <a href="/dashboard" class="block px-4 py-3 text-sm text-indigo-300 hover:bg-white/10">⚙️ Admin</a>
+                    {% endif %}
+
+                    <a href="/logout" class="block px-4 py-3 text-sm text-red-400 hover:bg-white/10">Гарах</a>
+                </div>
+            </div>
+
+            {% else %}
+
+            <a href="/login"
+               class="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 active:scale-95 transition">
+                Нэвтрэх
+            </a>
+
+            {% endif %}
+
+        </div>
+    </div>
+</header>
+
+
+<!-- ===================== DETAIL ===================== -->
+<main class="max-w-7xl mx-auto px-5 py-10">
+
+    <!-- BREADCRUMB -->
+    <nav class="mb-6 text-sm text-slate-400 flex flex-wrap items-center gap-2">
+        <a href="/software" class="hover:text-white transition">Software</a>
+        <span>›</span>
+        <a href="{{ url_for('software_page', category=item.category) }}" class="hover:text-white transition">
+            {{ category_labels.get(item.category, '📦 Other') }}
+        </a>
+        <span>›</span>
+        <span class="text-slate-300 line-clamp-1">{{ item.title }}</span>
+    </nav>
+
+    <div class="grid grid-cols-1 md:grid-cols-[300px_1fr] lg:grid-cols-[340px_1fr] gap-8">
+
+        <!-- COVER -->
+        <div>
+            <div class="aspect-[2/3] rounded-2xl overflow-hidden bg-slate-800 border border-slate-800 shadow-2xl relative max-w-sm mx-auto md:max-w-none">
+                {% if item.cover_url %}
+                <img src="{{ item.cover_url }}" alt="{{ item.title }}" class="w-full h-full object-cover">
+                {% else %}
+                <div class="w-full h-full flex items-center justify-center text-7xl text-slate-600">
+                    {% if item.category == 'game' %}🎮
+                    {% elif item.category == 'software' %}💻
+                    {% elif item.category == 'application' %}📱
+                    {% elif item.category == 'document' %}📄
+                    {% elif item.category == 'ebook' %}📚
+                    {% else %}📦{% endif %}
+                </div>
+                {% endif %}
+
+                {% if item.access_type == 'paid' %}
+                <span class="absolute top-3 right-3 text-xs font-bold bg-violet-600 text-white px-3 py-1.5 rounded-lg">PAID</span>
+                {% else %}
+                <span class="absolute top-3 right-3 text-xs font-bold bg-green-500 text-white px-3 py-1.5 rounded-lg">FREE</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- INFO -->
+        <div class="min-w-0">
+
+            <span class="inline-block text-xs font-semibold bg-white/10 text-slate-200 px-3 py-1 rounded-full">
+                {{ category_labels.get(item.category, '📦 Other') }}
+            </span>
+
+            <h1 class="mt-4 text-3xl md:text-4xl font-black leading-tight break-words">
+                {{ item.title }}
+            </h1>
+
+            <!-- PRICE + ACTION -->
+            <div class="mt-6 flex flex-wrap items-center gap-4">
+
+                {% if item.access_type == 'paid' %}
+                <div class="text-3xl font-black text-violet-300">
+                    {{ '{:,}'.format(item.price or 0) }} ₮
+                </div>
+                {% else %}
+                <div class="text-3xl font-black text-green-400">Үнэгүй</div>
+                {% endif %}
+
+                {% if has_access %}
+                <a href="{{ url_for('software_download', item_id=item._id) }}"
+                   {% if item.storage_type == 'external' %}rel="noopener noreferrer"{% endif %}
+                   class="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-8 py-3.5 text-base font-bold text-white hover:bg-indigo-500 active:scale-95 transition">
+                    ⬇ Татах
+                </a>
+                {% elif user %}
+                <button type="button" disabled
+                        class="inline-flex items-center gap-2 rounded-xl bg-violet-600/50 px-8 py-3.5 text-base font-bold text-white/80 cursor-not-allowed">
+                    🔒 Худалдаж авах
+                </button>
+                {% else %}
+                <a href="/login"
+                   class="inline-flex items-center gap-2 rounded-xl bg-slate-800 border border-slate-700 px-8 py-3.5 text-base font-bold text-white hover:bg-slate-700 transition">
+                    Нэвтэрч татах
+                </a>
+                {% endif %}
+            </div>
+
+            <!-- DETAILS -->
+            <div class="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-3">
+
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                    <div class="text-xs text-slate-500">Төрөл</div>
+                    <div class="mt-1 text-sm font-semibold">
+                        {% if item.storage_type == 'external' %}🔗 Link
+                        {% elif item.file_type %}{{ item.file_type|upper }}
+                        {% else %}—{% endif %}
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                    <div class="text-xs text-slate-500">Хэмжээ</div>
+                    <div class="mt-1 text-sm font-semibold">{{ item.file_size_text or '—' }}</div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                    <div class="text-xs text-slate-500">Татсан</div>
+                    <div class="mt-1 text-sm font-semibold">⬇ {{ item.download_count or 0 }}</div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                    <div class="text-xs text-slate-500">Нэмсэн огноо</div>
+                    <div class="mt-1 text-sm font-semibold">
+                        {{ item.created_at.strftime('%Y-%m-%d') if item.created_at else '—' }}
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- DESCRIPTION -->
+            <div class="mt-8">
+                <h2 class="text-xl font-bold mb-3">Тайлбар</h2>
+
+                {% if item.description %}
+                <p class="text-slate-300 text-sm sm:text-base leading-7 whitespace-pre-wrap break-words">{{ item.description }}</p>
+                {% else %}
+                <p class="text-slate-500 text-sm">Тайлбар оруулаагүй байна.</p>
+                {% endif %}
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- RELATED -->
+    {% if related_items %}
+    <section class="mt-14 border-t border-white/10 pt-10">
+        <h2 class="text-2xl font-bold mb-6">Төстэй item-үүд</h2>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5">
+
+            {% for rel in related_items %}
+            <a href="{{ rel.detail_url }}"
+               class="group block rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 hover:border-indigo-500 hover:-translate-y-1 transition duration-200">
+
+                <div class="aspect-[2/3] bg-slate-800 overflow-hidden relative">
+                    {% if rel.cover_url %}
+                    <img src="{{ rel.cover_url }}" alt="{{ rel.title }}" loading="lazy"
+                         class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                    {% else %}
+                    <div class="w-full h-full flex items-center justify-center text-5xl text-slate-600">📦</div>
+                    {% endif %}
+
+                    {% if rel.access_type == 'paid' %}
+                    <span class="absolute bottom-3 right-3 text-xs font-bold bg-violet-600 text-white px-2.5 py-1 rounded-lg">
+                        {{ '{:,}'.format(rel.price or 0) }} ₮
+                    </span>
+                    {% else %}
+                    <span class="absolute bottom-3 right-3 text-xs font-bold bg-green-500 text-white px-2.5 py-1 rounded-lg">FREE</span>
+                    {% endif %}
+                </div>
+
+                <div class="p-4">
+                    <h3 class="font-bold text-sm leading-5 line-clamp-2 group-hover:text-indigo-400 transition">
+                        {{ rel.title }}
+                    </h3>
+                </div>
+            </a>
+            {% endfor %}
+
+        </div>
+    </section>
+    {% endif %}
+
+</main>
+
+
+<!-- ===================== SCRIPTS ===================== -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const profileButton = document.getElementById('profile-button');
+    const profileMenu = document.getElementById('profile-menu');
+
+    if (profileButton && profileMenu) {
+        profileButton.addEventListener('click', function (event) {
+            event.stopPropagation();
+            profileMenu.classList.toggle('hidden');
+        });
+
+        profileMenu.addEventListener('click', function (event) {
+            event.stopPropagation();
+        });
+
+        document.addEventListener('click', function () {
+            profileMenu.classList.add('hidden');
+        });
+    }
+});
+</script>
+
+</body>
+</html>

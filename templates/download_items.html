@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 {% block title %}Download Items{% endblock %}
 
@@ -61,9 +60,7 @@
         .dl-grid { grid-template-columns: 1fr; }
         .dl-card { padding: 17px; }
     }
-    [hidden] {
-    display: none !important;
-}
+    [hidden] { display: none !important; }
 </style>
 
 <div class="dl-page">
@@ -76,26 +73,29 @@
         </div>
         <a href="/dashboard" class="dl-btn dl-btn-secondary" style="text-decoration:none;">← Буцах</a>
     </div>
-    <div class="dl-field full">
-      <label>Файлын эх сурвалж *</label>
-      <select id="storage_type" name="storage_type">
-          <option value="telegram">📤 Telegram Upload</option>
-          <option value="external">🔗 External Link</option>
-      </select>
-    </div>
-  
-      <div class="dl-field full" id="externalLinkField" hidden>
-          <label>External Download URL *</label>
-          <input type="url" id="external_url" name="external_url"
-                placeholder="https://www.mediafire.com/file/..."
-                disabled>
-      </div>
+
     <!-- UPLOAD FORM -->
     <div class="dl-card">
         <h2>⬆️ Шинэ файл бүртгэх</h2>
 
         <form id="downloadItemForm" enctype="multipart/form-data">
             <div class="dl-grid">
+
+                <!-- STORAGE TYPE (form-iin dotor baih ystoi) -->
+                <div class="dl-field full">
+                    <label for="storage_type">Файлын эх сурвалж *</label>
+                    <select id="storage_type" name="storage_type">
+                        <option value="telegram">📤 Telegram Upload</option>
+                        <option value="external">🔗 External Link</option>
+                    </select>
+                </div>
+
+                <div class="dl-field full" id="externalLinkField" hidden>
+                    <label for="external_url">External Download URL *</label>
+                    <input type="url" id="external_url" name="external_url"
+                           placeholder="https://www.mediafire.com/file/..."
+                           disabled>
+                </div>
 
                 <div class="dl-field full">
                     <label for="title">Item нэр *</label>
@@ -106,25 +106,26 @@
                     <label for="description">Тайлбар</label>
                     <textarea id="description" name="description" placeholder="Файлын тухай мэдээлэл..."></textarea>
                 </div>
+
                 <div class="dl-field">
-                  <label for="category">Category *</label>
-                  <select id="category" name="category" required>
-                      <option value="game">🎮 Game</option>
-                      <option value="software">💻 Software</option>
-                      <option value="application">📱 Application</option>
-                      <option value="document">📄 Document</option>
-                      <option value="ebook">📚 E-book</option>
-                      <option value="other">📦 Other</option>
-                  </select>
-              </div>
-              
-              <div class="dl-field full">
-                  <label for="cover">Cover зураг</label>
-                  <input type="file" id="cover" name="cover"
-                         accept="image/jpeg,image/png,image/webp">
-                  <img id="coverPreview" alt="Cover preview"
-                       style="display:none;width:150px;height:190px;object-fit:cover;border-radius:12px;margin-top:12px;">
-              </div>
+                    <label for="category">Category *</label>
+                    <select id="category" name="category" required>
+                        <option value="game">🎮 Game</option>
+                        <option value="software">💻 Software</option>
+                        <option value="application">📱 Application</option>
+                        <option value="document">📄 Document</option>
+                        <option value="ebook">📚 E-book</option>
+                        <option value="other">📦 Other</option>
+                    </select>
+                </div>
+
+                <div class="dl-field full">
+                    <label for="cover">Cover зураг</label>
+                    <input type="file" id="cover" name="cover" accept="image/jpeg,image/png,image/webp">
+                    <img id="coverPreview" alt="Cover preview"
+                         style="display:none;width:150px;height:190px;object-fit:cover;border-radius:12px;margin-top:12px;">
+                </div>
+
                 <div class="dl-field">
                     <label for="access_type">Таталтын төрөл</label>
                     <select id="access_type" name="access_type">
@@ -139,14 +140,14 @@
                 </div>
 
                 <div class="dl-field full" id="telegramFileField">
-                  <label>Файл сонгох *</label>
-                  <div class="dl-upload-box">
-                      <input type="file" id="file" name="file" required>
-                      <div class="dl-file-info" id="fileInfo">
-                          ZIP, RAR, PDF, MP4 болон бусад файл
-                      </div>
-                  </div>
-              </div>
+                    <label for="file">Файл сонгох *</label>
+                    <div class="dl-upload-box">
+                        <input type="file" id="file" name="file" required>
+                        <div class="dl-file-info" id="fileInfo">
+                            ZIP, RAR, PDF, MP4 болон бусад файл
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div style="text-align:right;">
@@ -253,6 +254,7 @@
 <script>
 (() => {
     const API_URL = "/admin/api/download-items";
+    const FILE_HINT = "ZIP, RAR, PDF, MP4 болон бусад файл";
     const $ = id => document.getElementById(id);
 
     let items = [];
@@ -297,7 +299,7 @@
     }
 
     // ============================================
-    // UPLOAD FORM
+    // PRICE TOGGLE (upload form)
     // ============================================
     function togglePrice() {
         const paid = $("access_type").value === "paid";
@@ -310,13 +312,64 @@
     $("access_type").addEventListener("change", togglePrice);
     togglePrice();
 
+    // ============================================
+    // STORAGE TYPE TOGGLE (Telegram / External)
+    // ============================================
+    function toggleStorageType() {
+        const isExternal = $("storage_type").value === "external";
+
+        $("telegramFileField").hidden = isExternal;
+        $("externalLinkField").hidden = !isExternal;
+
+        $("file").required = !isExternal;
+        $("file").disabled = isExternal;
+
+        $("external_url").required = isExternal;
+        $("external_url").disabled = !isExternal;
+    }
+
+    $("storage_type").addEventListener("change", toggleStorageType);
+    toggleStorageType();
+
+    // ============================================
+    // FILE INFO
+    // ============================================
     $("file").addEventListener("change", () => {
         const file = $("file").files[0];
         $("fileInfo").textContent = file
             ? `${file.name} (${formatSize(file.size)})`
-            : "ZIP, RAR, PDF, MP4 болон бусад файл";
+            : FILE_HINT;
     });
 
+    // ============================================
+    // COVER PREVIEW
+    // ============================================
+    function resetCoverPreview() {
+        const preview = $("coverPreview");
+        if (preview.dataset.url) URL.revokeObjectURL(preview.dataset.url);
+        preview.style.display = "none";
+        preview.removeAttribute("src");
+        delete preview.dataset.url;
+    }
+
+    $("cover").addEventListener("change", event => {
+        const file = event.target.files[0];
+        const preview = $("coverPreview");
+
+        if (preview.dataset.url) URL.revokeObjectURL(preview.dataset.url);
+
+        if (file) {
+            preview.dataset.url = URL.createObjectURL(file);
+            preview.src = preview.dataset.url;
+            preview.style.display = "block";
+        } else {
+            resetCoverPreview();
+        }
+    });
+
+    // ============================================
+    // UPLOAD FORM SUBMIT
+    // ============================================
     $("downloadItemForm").addEventListener("submit", event => {
         event.preventDefault();
 
@@ -328,9 +381,13 @@
 
         hideAlert($("uploadAlert"));
 
+        const isExternal = $("storage_type").value === "external";
+
         $("uploadProgress").style.display = "block";
         $("progressFill").style.width = "0%";
-        $("progressText").textContent = "Файлыг сервер рүү илгээж байна...";
+        $("progressText").textContent = isExternal
+            ? "Мэдээллийг хадгалж байна..."
+            : "Файлыг сервер рүү илгээж байна...";
 
         const xhr = new XMLHttpRequest();
         xhr.open("POST", "/admin/api/upload");
@@ -345,7 +402,9 @@
             $("progressFill").style.width = percent + "%";
             $("progressText").textContent = percent < 100
                 ? `Сервер рүү илгээж байна: ${percent}%`
-                : "Telegram руу upload хийж, MongoDB-д хадгалж байна...";
+                : (isExternal
+                    ? "MongoDB-д хадгалж байна..."
+                    : "Telegram руу upload хийж, MongoDB-д хадгалж байна...");
         };
 
         xhr.onload = async () => {
@@ -363,8 +422,11 @@
             if (success) {
                 $("downloadItemForm").reset();
                 togglePrice();
-                $("fileInfo").textContent = "ZIP, RAR, PDF, MP4 болон бусад файл";
-                $("progressText").textContent = "Upload амжилттай.";
+                toggleStorageType();
+                resetCoverPreview();
+                $("fileInfo").textContent = FILE_HINT;
+                $("progressFill").style.width = "100%";
+                $("progressText").textContent = "Амжилттай.";
                 await loadItems();
             }
 
@@ -410,7 +472,8 @@
 
         const filtered = items.filter(item =>
             (item.title || "").toLowerCase().includes(search) ||
-            (item.telegram?.file_name || "").toLowerCase().includes(search)
+            (item.telegram?.file_name || "").toLowerCase().includes(search) ||
+            (item.external_url || "").toLowerCase().includes(search)
         );
 
         $("itemsCount").textContent = `${filtered.length} / ${items.length} файл`;
@@ -426,17 +489,27 @@
 
         filtered.forEach(item => {
             const row = createElement("tr");
+            const isExternal = item.storage_type === "external";
 
             // FILE NAME
             const fileCell = createElement("td");
             fileCell.append(
                 createElement("strong", item.title || "—"),
-                createElement("span", item.telegram?.file_name || "—", "dl-filename")
+                createElement(
+                    "span",
+                    isExternal
+                        ? "🔗 " + (item.external_url || "—")
+                        : (item.telegram?.file_name || "—"),
+                    "dl-filename"
+                )
             );
             row.append(fileCell);
 
             // FILE SIZE
-            row.append(createElement("td", formatSize(item.telegram?.file_size)));
+            row.append(createElement(
+                "td",
+                isExternal ? "External" : formatSize(item.telegram?.file_size)
+            ));
 
             // TYPE AND PRICE
             const typeCell = createElement("td");
@@ -597,53 +670,5 @@
 
     loadItems();
 })();
-
-document.getElementById("cover").addEventListener("change", (event) => {
-    const file = event.target.files[0];
-    const preview = document.getElementById("coverPreview");
-
-    if (preview.dataset.url) URL.revokeObjectURL(preview.dataset.url);
-
-    preview.style.display = file ? "block" : "none";
-    if (file) {
-        preview.dataset.url = URL.createObjectURL(file);
-        preview.src = preview.dataset.url;
-    } else {
-        preview.removeAttribute("src");
-        delete preview.dataset.url;
-    }
-});
-function toggleStorageType() {
-    const storageType = document.getElementById("storage_type");
-    const telegramField = document.getElementById("telegramFileField");
-    const externalField = document.getElementById("externalLinkField");
-    const fileInput = document.getElementById("file");
-    const urlInput = document.getElementById("external_url");
-
-    if (!storageType || !telegramField || !externalField || !fileInput || !urlInput) {
-        console.error("Storage Type: HTML element олдсонгүй.");
-        return;
-    }
-
-    const isExternal = storageType.value === "external";
-
-    telegramField.hidden = isExternal;
-    externalField.hidden = !isExternal;
-
-    fileInput.required = !isExternal;
-    fileInput.disabled = isExternal;
-
-    urlInput.required = isExternal;
-    urlInput.disabled = !isExternal;
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    const storageType = document.getElementById("storage_type");
-
-    if (storageType) {
-        storageType.addEventListener("change", toggleStorageType);
-        toggleStorageType();
-    }
-});
 </script>
 {% endblock %}
