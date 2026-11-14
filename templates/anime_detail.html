@@ -7,6 +7,16 @@
     <link rel="icon" type="image/png" href="{{url_for('static', filename='site/log.PNG')}}">
     <title>{{ anime.name }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        @font-face {
+          font-family: "NataSans";
+          src: url("{{ url_for('static', filename='Inter_28pt-Medium.ttf') }}") format("truetype");
+          font-weight: 500;
+          font-display: swap;
+        }
+        body { font-family: "NataSans", ui-sans-serif, system-ui, sans-serif; font-weight: 500; }
+      </style>
 </head>
 
 <body class="bg-slate-950 text-white">

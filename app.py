@@ -2,6 +2,7 @@ import os, re, asyncio, tempfile
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
+from functools import lru_cache
 from uuid import uuid4
 from bson.objectid import ObjectId
 from dotenv import load_dotenv
@@ -16,7 +17,7 @@ from datetime import datetime, timedelta,date
 import requests
 from pymongo import MongoClient, ReturnDocument
 from uploader import *
-import io
+import io, hashlib
 import cloudinary
 from PIL import Image, ImageOps
 import random
@@ -37,6 +38,7 @@ from uploader import (
 )
 from flask_session import Session
 load_dotenv()
+from utils import *
 def compute_spend_time(start, end ,name):
     return f"⏳⏳ {name}: {end - start:.3f} seconds"
 def utcnow():
@@ -46,9 +48,13 @@ MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "2048"))
 app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://localhost:27017/render_server")
 mongo_client = MongoClient(os.getenv("MONGO_URI"))
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "anime_db")
-
+try:
+    init_comments_table()
+    print("[DB] comments table OK")
+except Exception as e:
+    print("[DB] comments table init failed:", e)
 start = time.time()
-from utils import *
+
 app.config["SESSION_TYPE"] = "mongodb"
 app.config["SESSION_MONGODB"] = mongo_client
 app.config["SESSION_MONGODB_DB"] = MONGO_DB_NAME
@@ -67,6 +73,58 @@ app.config.update(
 
 Session(app)
 PROFILE_IMAGE_MAX_MB = 5
+AVATAR_DIR = os.path.join(app.static_folder, "avatars")
+_IMG_EXT = (".webp", ".png", ".jpg", ".jpeg")
+
+
+@lru_cache(maxsize=1)
+def list_default_avatars():
+    """Хавтсыг нэг л удаа уншина (процесс эхлэхэд / анхны дуудалтад)."""
+    try:
+        return tuple(sorted(
+            f for f in os.listdir(AVATAR_DIR) if f.lower().endswith(_IMG_EXT)
+        ))
+    except FileNotFoundError:
+        return ()
+
+
+@lru_cache(maxsize=4096)
+def default_avatar_for(user_id: str):
+    """Нэг user_id үргэлж нэг ижил avatar авна. Үр дүнг мөн cache хийнэ."""
+    files = list_default_avatars()
+    if not files:
+        return None
+    idx = int(hashlib.md5(user_id.encode()).hexdigest(), 16) % len(files)
+    return "/static/avatars/" + files[idx]
+
+
+def _to_query_id(uid: str):
+    try:
+        return ObjectId(uid)
+    except Exception:
+        return uid
+
+
+def attach_user_info(items: list[dict]) -> list[dict]:
+    ids = list({str(c["user_id"]) for c in items})
+    qids = [_to_query_id(i) for i in ids]
+
+    users = {}
+    for u in users_collection.find(
+        {"_id": {"$in": qids}},
+        {"name": 1, "nickname": 1, "profile_image_url": 1},
+    ):
+        users[str(u["_id"])] = u
+
+    for c in items:
+        uid = str(c["user_id"])
+        u = users.get(uid, {})
+        own = (u.get("profile_image_url") or "").strip()
+        c["avatar"] = own if own else default_avatar_for(uid)
+        c["user_name"] = u.get("nickname") or "Хэрэглэгч"
+        c.pop("user_id", None)
+    return items
+
 
 api_key_verify=os.getenv("api_key_verify", "")
 verify_url=os.getenv("verify_url",'')
@@ -1437,7 +1495,7 @@ def auth_status(pending_id):
         session["user_id"] = str(
             user["_id"]
         )
-
+        session["user_name"] = user.get('nickname','Anonymous')
         session["phone"] = phone
 
         session["authenticated"] = True
@@ -2589,6 +2647,51 @@ def payment(video_id):
     "payment_id": str(payment_id),
     "payment_link": payment_link,
 }), 200
+@app.get("/api/comments")
+def api_comments_list():
+    video_id = request.args.get("video_id", "")
+    limit = request.args.get("limit", 20, type=int)
+    offset = request.args.get("offset", 0, type=int)
+    items = attach_user_info(get_comments(video_id, limit, offset))
+ 
+    return jsonify({"total": count_comments(video_id), "items": items})
+
+@app.post("/api/comments")
+def api_comments_add():
+    user_id = session.get("user_id")           # өөрийн session түлхүүрээр солино
+    if not user_id:
+        return jsonify({"error": "unauthorized"}), 401
+
+    data = request.get_json(silent=True) or {}
+    try:
+        cid = add_comment(user_id, data.get("video_id", ""), data.get("comment", ""))
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    item = {
+        "id": cid, "user_id": user_id,
+        "comment": data["comment"].strip(),
+        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    return jsonify(attach_user_info([item])[0])
+
+@app.get("/api/ratings")
+def api_ratings_get():
+    video_id = request.args.get("video_id", "")
+    return jsonify(get_ratings(video_id, session.get("user_id")))
+
+
+@app.post("/api/ratings")
+def api_ratings_set():
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"error": "unauthorized"}), 401
+    d = request.get_json(silent=True) or {}
+    try:
+        set_rating(user_id, d.get("video_id", ""), d.get("kind", ""), d.get("score", 0))
+    except (ValueError, TypeError) as e:
+        return jsonify({"error": str(e)}), 400
+    return jsonify(get_ratings(d["video_id"], user_id))
 
 @app.route("/payment/check/<msg>", methods=["GET"])
 def check_payment(msg):

@@ -19,230 +19,25 @@
         href="https://cdn.plyr.io/3.7.8/plyr.css"
     />
     <link rel="icon" type="image/png" href="{{url_for('static', filename='site/log.PNG')}}">
-    <style>
-        .codec-warning{
-  display:flex; gap:14px; align-items:flex-start;
-  background:#fff5d6; border:1px solid #f3dc8c; border-radius:14px;
-  padding:16px 20px; margin:16px 0; color:#5a4300;
-}
-.codec-warning[hidden]{display:none}
-.cw-icon{
-  flex:0 0 36px; height:36px; border-radius:50%;
-  background:#f6c445; color:#fff; font-weight:700; font-size:20px;
-  display:flex; align-items:center; justify-content:center;
-}
-.cw-title{font-weight:700; margin-bottom:4px}
-.cw-text{font-size:14px; line-height:1.5}
-.cw-text ul{margin:6px 0 8px; padding-left:18px}
-.cw-link{color:#2f6fed; font-weight:600; font-size:14px; text-decoration:none}
-.cw-link:hover{text-decoration:underline}
-        * {
-            box-sizing: border-box;
-        }
+    <link rel="stylesheet" href="{{ url_for('static', filename='watch.css') }}">
+ <style>
 
-        body {
-            margin: 0;
-            background: #f5f6fa;
-            font-family: Arial, sans-serif;
-            color: #1f2937;
-        }
-
-        .page {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 32px 20px;
-        }
-
-        .browser-warning {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            margin-bottom: 20px;
-            padding: 14px 18px;
-            background: #fff7d6;
-            border: 1px solid #f2d675;
-            border-radius: 14px;
-            color: #6b5200;
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
-        }
-
-        .browser-warning-icon {
-            flex: 0 0 36px;
-            width: 36px;
-            height: 36px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            background: #f5c542;
-            color: #5b4500;
-            font-size: 20px;
-            font-weight: 800;
-        }
-
-        .browser-warning-text {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            font-size: 14px;
-            line-height: 1.5;
-        }
-
-        .browser-warning-text b {
-            color: #5a4400;
-        }
-
-        .back {
-            display: inline-block;
-            margin-bottom: 20px;
-            color: #6366f1;
-            text-decoration: none;
-            font-weight: 600;
-        }
-
-        .player-card {
-            background: white;
-            border-radius: 20px;
-            padding: 24px;
-            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.07);
-        }
-
-        .player-box {
-            width: 100%;
-            background: #111827;
-            border-radius: 16px;
-            overflow: hidden;
-        }
-
-        .player-box video {
-            width: 100%;
-            aspect-ratio: 16 / 9;
-        }
-
-        h1 {
-            margin-top: 24px;
-            margin-bottom: 8px;
-        }
-
-        .meta {
-            color: #6b7280;
-        }
-
-        .plyr {
-            border-radius: 16px;
-            overflow: hidden;
-        }
-
-        .plyr--video {
-            background: #000;
-        }
-
-        .plyr__control--overlaid {
-            width: 70px;
-            height: 70px;
-        }
-        .episode-navigation {
-    display: flex;
-    justify-content: space-between;
-    gap: 14px;
-    margin-top: 18px;
+@font-face {
+    font-family: "NataSans";
+    src: url("{{ url_for('static', filename='Inter_28pt-Medium.ttf') }}") format("truetype");
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
 }
 
-.episode-nav-btn {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 14px 18px;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    background: #fff;
+body {
+    font-family: "NataSans", Arial, sans-serif;
+    font-weight: 500;
+    margin: 0;
+    background: #f5f6fa;
     color: #1f2937;
-    text-decoration: none;
-    transition: 0.2s ease;
 }
-
-.episode-nav-btn:hover {
-    border-color: #6366f1;
-    background: #f5f3ff;
-    transform: translateY(-1px);
-}
-
-.episode-nav-btn.next {
-    justify-content: flex-end;
-    text-align: right;
-}
-
-.episode-nav-btn span {
-    font-size: 24px;
-    color: #6366f1;
-}
-
-.episode-nav-btn small {
-    display: block;
-    color: #9ca3af;
-    font-size: 12px;
-    margin-bottom: 3px;
-}
-
-.episode-nav-btn strong {
-    display: block;
-    font-size: 15px;
-}
-
-.episode-nav-btn.disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-    background: #f9fafb;
-}
-
-.episode-nav-btn.disabled:hover {
-    border-color: #e5e7eb;
-    background: #f9fafb;
-    transform: none;
-}
-
-@media (max-width: 640px) {
-    .episode-navigation {
-        gap: 8px;
-    }
-
-    .episode-nav-btn {
-        padding: 11px 12px;
-    }
-
-    .episode-nav-btn strong {
-        font-size: 13px;
-    }
-}
-        @media (max-width: 700px) {
-            .page {
-                padding: 20px 14px;
-            }
-
-            .browser-warning {
-                align-items: flex-start;
-                padding: 12px 14px;
-            }
-
-            .player-card {
-                padding: 14px;
-            }
-        }
-
-       .chrome-download-link {
-            display: inline-block;
-            margin-top: 8px;
-            color: #4285f4;
-            font-weight: 600;
-            text-decoration: none;
-        }
-
-        .chrome-download-link:hover {
-            text-decoration: underline;
-        } 
-    </style>
-
+ </style>
 </head>
 
 <body>
@@ -417,7 +212,35 @@
 
 </div>
     </div>
-
+    <div class="comments-card" id="comments">
+        <div class="rating-grid" id="ratingGrid">
+            <div class="rating-box" data-kind="episode">
+                <div class="r-title">Ангийн үнэлгээ</div>
+                <div class="r-avg"><b class="avg">0.0</b> / 5 · <span class="cnt">0</span> санал</div>
+                <div class="stars"></div>
+                <div class="r-mine"></div>
+            </div>
+            <div class="rating-box" data-kind="translation">
+                <div class="r-title">Орчуулгын үнэлгээ</div>
+                <div class="r-avg"><b class="avg">0.0</b> / 5 · <span class="cnt">0</span> санал</div>
+                <div class="stars"></div>
+                <div class="r-mine"></div>
+            </div>
+        </div>
+        <h2>Сэтгэгдэл <small id="commentTotal"></small></h2>
+    
+        <div class="comment-form">
+            <textarea id="commentInput" maxlength="1000"
+                      placeholder="Сэтгэгдлээ бичнэ үү..."></textarea>
+            <div class="row">
+                <span class="counter"><span id="commentCount">0</span>/1000</span>
+                <button type="button" id="commentSubmit">Илгээх</button>
+            </div>
+        </div>
+    
+        <div class="comment-list" id="commentList"></div>
+        <button type="button" class="load-more" id="commentMore" hidden>Цааш үзэх</button>
+    </div>
 
         <div id="codecWarning" class="codec-warning" hidden>
   <div class="cw-icon">!</div>
@@ -747,6 +570,161 @@
   }
 })();
 </script>
+<script>
+    (function () {
+      const VIDEO_ID = "{{ video._id }}";
+      const LIMIT = 20;
+      let offset = 0;
+    
+      const list   = document.getElementById("commentList");
+      const input  = document.getElementById("commentInput");
+      const btn    = document.getElementById("commentSubmit");
+      const more   = document.getElementById("commentMore");
+      const total  = document.getElementById("commentTotal");
+      const counter= document.getElementById("commentCount");
+    
+      function render(c, prepend) {
+   
+        const item = document.createElement("div");
+        item.className = "comment-item";
+
+        const img = document.createElement("img");
+        img.className = "avatar";
+        img.loading = "lazy";
+        img.alt = "";
+        img.src = c.avatar || "";
+        img.onerror = () => { img.style.visibility = "hidden"; };
+
+        const content = document.createElement("div");
+        content.className = "content";
+
+        const head = document.createElement("div");
+        head.className = "head";
+        const u = document.createElement("span");
+        u.className = "user";
+        u.textContent = c.user_name;
+        const t = document.createElement("span");
+        t.className = "time";
+        t.textContent = c.created_at;
+        head.append(u, t);
+
+        const body = document.createElement("div");
+        body.className = "text";
+        body.textContent = c.comment;
+
+        content.append(head, body);
+        item.append(img, content);
+        prepend ? list.prepend(item) : list.append(item);
+        }
+      async function load() {
+        const r = await fetch(
+          `/api/comments?video_id=${encodeURIComponent(VIDEO_ID)}&limit=${LIMIT}&offset=${offset}`,
+          {credentials: "same-origin"}
+        );
+  
+        if (!r.ok) return;
+        const d = await r.json();
+        total.textContent = `(${d.total})`;
+        d.items.forEach(c => render(c, false));
+        offset += d.items.length;
+        more.hidden = offset >= d.total;
+        if (!d.total) {
+          list.innerHTML = '<div class="comment-empty">Одоогоор сэтгэгдэл алга.</div>';
+        }
+      }
+    
+      async function submit() {
+        const text = input.value.trim();
+        if (!text) return;
+        btn.disabled = true;
+        try {
+          const r = await fetch("/api/comments", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({video_id: VIDEO_ID, comment: text}),
+          });
+          if (r.status === 401) { alert("Нэвтэрч орно уу."); return; }
+          if (!r.ok) { alert((await r.json()).error || "Алдаа гарлаа"); return; }
+          const c = await r.json();
+          list.querySelector(".comment-empty")?.remove();
+          render(c, true);
+          offset += 1;
+          input.value = ""; counter.textContent = "0";
+          total.textContent = `(${(parseInt(total.textContent.replace(/\D/g, "")) || 0) + 1})`;
+        } finally {
+          btn.disabled = false;
+        }
+      }
+    
+      input.addEventListener("input", () => counter.textContent = input.value.length);
+      btn.addEventListener("click", submit);
+      more.addEventListener("click", load);
+      load();
+    })();
+    </script>
+
+
+<script>
+    (function () {
+      const VIDEO_ID = "{{ video._id }}";
+      const boxes = document.querySelectorAll("#ratingGrid .rating-box");
+    
+      // 5 од үүсгэх
+      boxes.forEach(box => {
+        const wrap = box.querySelector(".stars");
+        for (let i = 1; i <= 5; i++) {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.textContent = "★";
+          b.dataset.v = i;
+          b.title = i + " оноо";
+          b.addEventListener("click", () => send(box.dataset.kind, i));
+          b.addEventListener("mouseenter", () => paint(box, i));
+          wrap.append(b);
+        }
+        wrap.addEventListener("mouseleave", () => paint(box, box._mine || 0));
+      });
+    
+      function paint(box, n) {
+        box.querySelectorAll(".stars button").forEach(b => {
+          b.classList.toggle("on", Number(b.dataset.v) <= n);
+        });
+      }
+    
+      function apply(data) {
+        boxes.forEach(box => {
+          const d = data[box.dataset.kind];
+          box.querySelector(".avg").textContent = d.avg.toFixed(1);
+          box.querySelector(".cnt").textContent = d.count;
+          box._mine = d.mine || 0;
+          paint(box, box._mine);
+          box.querySelector(".r-mine").textContent =
+            d.mine ? "Таны үнэлгээ: " + d.mine : "";
+        });
+      }
+    
+      async function load() {
+        const r = await fetch("/api/ratings?video_id=" + encodeURIComponent(VIDEO_ID),
+                              {credentials: "same-origin"});
+        if (r.ok) apply(await r.json());
+      }
+    
+      async function send(kind, score) {
+        const r = await fetch("/api/ratings", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({video_id: VIDEO_ID, kind, score}),
+        });
+        if (r.status === 401) { alert("Нэвтэрч орно уу."); return; }
+        if (!r.ok) { alert((await r.json()).error || "Алдаа гарлаа"); return; }
+        apply(await r.json());
+      }
+    
+      load();
+    })();
+    </script>
 </body>
 </html>
 
