@@ -135,10 +135,10 @@ mongo_db = mongo_client[MONGO_DB_NAME]
 videos_collection = mongo_db["videos"]
 anime_collection = mongo_db["anime"]
 files_collection = mongo_db["files"]
-home_comments_collection = mongo_db["home_comments"]
+
 zip_files = mongo_db["zip_files"]
 purchases_collection = mongo_db['purchases']
-watch_history_collection = mongo_db['watch_history']
+#watch_history_collection = mongo_db['watch_history']
 users_collection = mongo_db.users
 genres_collection = mongo_db.genres
 home_slides_collection = mongo_db.home_slides
@@ -1791,7 +1791,18 @@ def save_watch_history(user, video):
     print("🐍 File: render_server/app.py | Line: 1716 | save_watch_history ~ anime_id",anime_id)
     if not anime_id:
         return
-   
+    anime = anime_collection.find_one({
+            "_id": ObjectId(video.get("anime_id"))
+        })
+
+    upsert_watch_history(
+        user_id=user["_id"],
+        anime_id=anime_id,
+        anime_name=anime['name'],
+        video_id=video["_id"],
+        name=video.get("title"),
+    )
+    '''
     watch_history_collection.update_one(
         {"user_id": user["_id"], "anime_id": anime_id},
         {
@@ -1806,7 +1817,40 @@ def save_watch_history(user, video):
         },
         upsert=True,
     )
+    '''
     print("🐍 File: render_server/app.py | Line: 1734 | save_watch_history ~ datetime.now(timezone.utc)",datetime.now(timezone.utc))
+
+@app.get("/user_watches")
+@admin_required            # <-- өөрийн админ decorator / шалгалт
+def user_watches():
+    page = request.args.get("page", 1, type=int)
+    uid = request.args.get("user_id") or None
+    q = (request.args.get("q") or "").strip() or None
+    per_page = 50
+
+    total, rows = list_all_watches(page, per_page, uid, q)
+
+    # Хэрэглэгчийн нэрийг Mongo-оос нэг дор авах
+    ids = list({r["user_id"] for r in rows})
+    users = {}
+    if ids:
+        for u in users_collection.find(
+            {"_id": {"$in": [_to_query_id(i) for i in ids]}},
+            {"nickname": 1, "phone": 1},
+        ):
+            users[str(u["_id"])] = u
+
+    for r in rows:
+        u = users.get(r["user_id"], {})
+        r["nickname"] = u.get("nickname") or "—"
+        r["phone"] = u.get("phone") or ""
+        r["watched_at"] = r["watched_at"] + timedelta(hours=8)   # Улаанбаатар
+
+    pages = max(1, (total + per_page - 1) // per_page)
+    return render_template("user_watches.html", rows=rows, total=total,
+                           page=page, pages=pages, q=q or "", uid=uid or "")
+
+
 CLEAR_ENDPOINTS = {"home", "anime_detail"}   # өөрийн route-уудын функцийн нэрээр солино
 
 @app.before_request
@@ -2372,14 +2416,8 @@ def home():
     # ==========================================
     # HOME SLIDES
     # ==========================================
-    comments = list(
-    home_comments_collection.find(
-            {"active": True}
-        ).sort("created_at", -1).limit(50)
-    )
 
-    for comment in comments:
-        comment["id"] = str(comment["_id"])
+    comments = get_home_comments(limit=50)
 
     slides = list(
         home_slides_collection.find(
@@ -2501,7 +2539,7 @@ def create_home_comment():
         if user
         else get_random_anonymous_avatar()
     )
-    print("🐍 File: render_server/app.py | Line: 1978 | create_home_comment ~ avatar_url",avatar_url)
+
     comment = {
         "user_id": user["_id"] if user else None,
         "nickname": (user.get("nickname") or "User") if user else "Anonymous",
@@ -2511,12 +2549,18 @@ def create_home_comment():
         "created_at": datetime.now(timezone.utc),
     }
 
-    home_comments_collection.insert_one(comment)
+    add_home_comment(
+        user_id=user["_id"] if user else None,
+        nickname=(user.get("nickname") or "User") if user else "Anonymous",
+        content=content,
+        avatar_url=avatar_url,
+    )
 
     return jsonify({
         "success": True,
         "message": "Сэтгэгдэл амжилттай нэмэгдлээ."
     })
+
 @app.route("/anime/<anime_id>")
 def anime_detail(anime_id):
     if get_current_user():   

@@ -74,12 +74,44 @@ def init_comments_table():
             KEY idx_video (video_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     """
+    sql_comments = """
+        CREATE TABLE IF NOT EXISTS home_comments (
+            id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            mongo_id    CHAR(24) NULL,                 -- хуучин Mongo _id (migration давхцахаас сэргийлнэ)
+            user_id     VARCHAR(64) NULL,              -- NULL = Anonymous
+            nickname    VARCHAR(100) NOT NULL DEFAULT 'Anonymous',
+            content     TEXT NOT NULL,
+            avatar_url  VARCHAR(500) NULL,
+            active      TINYINT(1) NOT NULL DEFAULT 1,
+            created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_mongo_id (mongo_id),
+            KEY idx_active_created (active, created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    """
+    watchsql = """
+        CREATE TABLE IF NOT EXISTS watch_history (
+            id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            user_id     VARCHAR(64)  NOT NULL,
+            anime_id    VARCHAR(64)  NOT NULL,
+            anime_name  VARCHAR(64)  NOT NULL,
+            video_id    VARCHAR(64)  NOT NULL,
+            name        VARCHAR(255) NULL,
+            watched_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_user_anime (user_id, anime_id),
+            KEY idx_watched (watched_at),
+            KEY idx_video (video_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    """
     conn = get_conn()
     try:
         cur = conn.cursor()
         cur.execute(sql)
         cur.execute(sql2)
-  
+        cur.execute(sql_comments)
+        cur.execute(watchsql)
         cur.close()
     finally:
         conn.close()
@@ -396,3 +428,117 @@ def send_video_info_to_django(data):
     response.raise_for_status()
 
     return response.json()
+
+
+
+def add_home_comment(user_id, nickname, content, avatar_url) -> int:
+    sql = """
+        INSERT INTO home_comments (user_id, nickname, content, avatar_url, created_at)
+        VALUES (%s, %s, %s, %s, %s)
+    """
+    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)   # MySQL DATETIME = UTC
+    conn = get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute(sql, (
+            str(user_id) if user_id else None,
+            (nickname or "Anonymous")[:100],
+            content,
+            avatar_url,
+            now_utc,
+        ))
+        new_id = cur.lastrowid
+        cur.close()
+        return new_id
+    finally:
+        conn.close()
+
+
+def get_home_comments(limit: int = 50) -> list[dict]:
+    sql = """
+        SELECT id, user_id, nickname, content, avatar_url, active, created_at
+        FROM home_comments
+        WHERE active = 1
+        ORDER BY created_at DESC, id DESC
+        LIMIT %s
+    """
+    conn = get_conn()
+    try:
+        cur = conn.cursor(dictionary=True)
+        cur.execute(sql, (int(limit),))
+        rows = cur.fetchall()
+        cur.close()
+    finally:
+        conn.close()
+    for r in rows:
+        r["id"] = str(r["id"])
+    return rows    
+
+
+def upsert_watch_history(user_id, anime_id,anime_name, video_id, name):
+    sql = """
+        INSERT INTO watch_history (user_id, anime_id,anime_name, video_id, name, watched_at)
+        VALUES (%s, %s, %s, %s, %s ,%s)
+        ON DUPLICATE KEY UPDATE
+            video_id   = VALUES(video_id),
+            name       = VALUES(name),
+            watched_at = VALUES(watched_at)
+    """
+    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    conn = get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute(sql, (str(user_id), str(anime_id),str(anime_name), str(video_id),
+                          (name or "")[:255], now_utc))
+        cur.close()
+    finally:
+        conn.close()
+
+
+def get_user_history(user_id, limit=50):
+    """Нэг хэрэглэгчийн түүх (өмнө Mongo-оос уншдаг байсан газар солино)."""
+    conn = get_conn()
+    try:
+        cur = conn.cursor(dictionary=True)
+        cur.execute("""
+            SELECT anime_id,anime_name, video_id, name, watched_at
+            FROM watch_history WHERE user_id = %s
+            ORDER BY watched_at DESC LIMIT %s
+        """, (str(user_id), int(limit)))
+        rows = cur.fetchall()
+        cur.close()
+        return rows
+    finally:
+        conn.close()
+
+
+def list_all_watches(page=1, per_page=50, user_id=None, q=None):
+    """Админ: бүх хэрэглэгчийн үзэлт."""
+    page = max(1, int(page))
+    per_page = max(1, min(int(per_page), 200))
+
+    where, params = [], []
+    if user_id:
+        where.append("user_id = %s")
+        params.append(str(user_id))
+    if q:
+        where.append("name LIKE %s")
+        params.append(f"%{q}%")
+    w = ("WHERE " + " AND ".join(where)) if where else ""
+
+    conn = get_conn()
+    try:
+        cur = conn.cursor(dictionary=True)
+        cur.execute(f"SELECT COUNT(*) AS c FROM watch_history {w}", params)
+        total = cur.fetchone()["c"]
+        cur.execute(f"""
+            SELECT user_id, anime_id,anime_name, video_id, name, watched_at, created_at
+            FROM watch_history {w}
+            ORDER BY watched_at DESC
+            LIMIT %s OFFSET %s
+        """, params + [per_page, (page - 1) * per_page])
+        rows = cur.fetchall()
+        cur.close()
+        return total, rows
+    finally:
+        conn.close()

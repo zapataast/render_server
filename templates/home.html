@@ -486,7 +486,7 @@ document.addEventListener('DOMContentLoaded', function () {
 document.getElementById("home-comment-form").addEventListener("submit", async function (e) {
     e.preventDefault();
 
-    const content = document.getElementById("home-comment-content").value.trim();
+    var content = document.getElementById("home-comment-content").value.trim();
     const button = document.getElementById("comment-submit");
     const message = document.getElementById("comment-message");
 
@@ -507,7 +507,7 @@ document.getElementById("home-comment-form").addEventListener("submit", async fu
         if (!response.ok || !result.success) {
             throw new Error(result.message || "Алдаа гарлаа.");
         }
-
+        document.getElementById("home-comment-content").value = ''
         window.location.reload();
     } catch (error) {
         message.textContent = error.message;

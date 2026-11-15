@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Үзэлтийн түүх</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800">
+<div class="max-w-6xl mx-auto px-4 py-8">
+
+    <div class="flex items-end justify-between mb-5">
+        <div>
+            <a href="/dashboard"
+               class="inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-indigo-600 mb-2 transition">
+                ← Dashboard руу буцах
+            </a>
+            <h1 class="text-2xl font-bold">Хэрэглэгчдийн үзэлт</h1>
+        </div>
+        <span class="text-sm text-slate-500">Нийт: {{ total }}</span>
+    </div>
+
+    <form method="get" class="flex flex-wrap gap-2 mb-5">
+        <input name="q" value="{{ q }}" placeholder="Ангийн нэрээр хайх"
+               class="border border-slate-200 rounded-lg px-3 py-2 text-sm">
+        <input name="user_id" value="{{ uid }}" placeholder="User ID"
+               class="border border-slate-200 rounded-lg px-3 py-2 text-sm">
+        <button class="bg-indigo-600 text-white rounded-lg px-4 py-2 text-sm font-semibold">Хайх</button>
+        {% if q or uid %}<a href="/user_watches" class="px-3 py-2 text-sm text-slate-500">Цэвэрлэх</a>{% endif %}
+    </form>
+
+    <div class="bg-white border border-slate-200 rounded-2xl overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-100 text-slate-600 text-left">
+                <tr>
+                    <th class="px-4 py-3">Хэрэглэгч</th>
+                    <th class="px-4 py-3">Утас</th>
+                    <th class="px-4 py-3">Анги</th>
+                    <th class="px-4 py-3">Anime ID</th>
+                    <th class="px-4 py-3">Үзсэн цаг</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for r in rows %}
+                <tr class="border-t border-slate-100 hover:bg-slate-50">
+                    <td class="px-4 py-2">
+                        <a class="text-indigo-600 hover:underline" href="?user_id={{ r.user_id }}">{{ r.nickname }}</a>
+                    </td>
+                    <td class="px-4 py-2">{{ r.phone }}</td>
+                    <td class="px-4 py-2">{{ r.name or '—' }}</td>
+                    <td class="px-4 py-2 text-slate-400 text-xs">{{ r.anime_name }}</td>
+                    <td class="px-4 py-2 whitespace-nowrap">{{ r.watched_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="5" class="px-4 py-10 text-center text-slate-400">Өгөгдөл алга</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="flex items-center justify-center gap-3 mt-5 text-sm">
+        {% if page > 1 %}
+        <a class="px-3 py-1.5 rounded-lg border bg-white" href="?page={{ page-1 }}&q={{ q }}&user_id={{ uid }}">← Өмнөх</a>
+        {% endif %}
+        <span class="text-slate-500">{{ page }} / {{ pages }}</span>
+        {% if page < pages %}
+        <a class="px-3 py-1.5 rounded-lg border bg-white" href="?page={{ page+1 }}&q={{ q }}&user_id={{ uid }}">Дараах →</a>
+        {% endif %}
+    </div>
+</div>
+</body>
+</html>
