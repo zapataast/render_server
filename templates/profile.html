@@ -2,9 +2,42 @@
 {% block title %}Profile{% endblock %}
 {% block body %}
 <header>
-  <b>Render App</b>
-  <nav><a href="{{url_for('dashboard')}}">Dashboard</a><a href="{{url_for('logout')}}">Гарах</a></nav>
+  <a
+            href="/"
+            class="brand"
+        >
+
+            <div class="brand-icon">
+                N
+            </div>
+
+            <span>
+                Нүүр хуудас
+            </span>
+
+        </a>
+  <link rel="stylesheet" href="{{ url_for('static', filename='dark.css', v=2) }}">
+  <link rel="icon" type="image/png" href="{{url_for('static', filename='site/log.PNG')}}">
+  <nav><a href="{{url_for('logout')}}">Гарах</a></nav>
 </header>
+<style>
+
+@font-face {
+    font-family: "NataSans";
+    src: url("{{ url_for('static', filename='Inter_28pt-Medium.ttf') }}") format("truetype");
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+body {
+    font-family: "NataSans", Arial, sans-serif;
+    font-weight: 500;
+    margin: 0;
+    background: #f5f6fa;
+    color: #1f2937;
+}
+</style>
 <main>
   {% with messages=get_flashed_messages(with_categories=true) %}
     {% for c,m in messages %}<div class="alert {{c}}">{{m}}</div>{% endfor %}
@@ -15,9 +48,7 @@
       {% if user.profile_image_url %}
         <img class="big-avatar" src="{{user.profile_image_url}}" style="--profile-scale: {{ PROFILE_IMAGE_SCALE }};"> 
       {% else %}
-        <div class="big-avatar fallback"
-        style="--profile-scale: {{ PROFILE_IMAGE_SCALE }};"
-        >{{user.nickname[:1]|upper}}</div>
+      <div class="big-avatar fallback" style="--profile-scale: {{ PROFILE_IMAGE_SCALE }};">{{ user.nickname[:1]|upper }}</div>
       {% endif %}
       <form action="{{url_for('upload_profile_image')}}" method="post" enctype="multipart/form-data">
         <input id="img" type="file" name="profile_image" accept=".jpg,.jpeg,.png,.webp" hidden onchange="this.form.submit()">
@@ -43,5 +74,50 @@
       </form>
     </section>
   </div>
+
+
+
+  <section class="card wide">
+    <div class="sec-head">
+      <h2>♥ Дуртай анимэ</h2>
+      <span class="muted">{{ favorites|length }}</span>
+    </div>
+    {% if favorites %}
+    <div class="poster-grid">
+      {% for f in favorites %}
+      <a class="poster" href="{{ url_for('anime_detail', anime_id=f.id) }}">
+        {% if f.image %}<img src="{{ f.image }}" alt="" loading="lazy">{% else %}<div class="noimg"></div>{% endif %}
+        <span>{{ f.name }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">Дуртай анимэ алга.</p>
+    {% endif %}
+  </section>
+  
+  <section class="card wide">
+    <div class="sec-head">
+      <h2>🕘 Үзсэн түүх</h2>
+      <span class="muted">{{ history|length }}</span>
+    </div>
+    {% if history %}
+    <div class="hist-list">
+      {% for h in history %}
+      <a class="hist-item" href="/watch/{{ h.video_id }}">
+        {% if h.image %}<img src="{{ h.image }}" alt="" loading="lazy">{% else %}<div class="noimg"></div>{% endif %}
+        <div class="hist-info">
+          <b>{{ h.anime_name }}</b>
+          <span>{{ h.episode }}</span>
+          <small>{{ h.watched_at.strftime('%Y-%m-%d %H:%M') }}</small>
+        </div>
+        <span class="go">▶</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">Үзсэн түүх алга.</p>
+    {% endif %}
+  </section>
 </main>
 {% endblock %}

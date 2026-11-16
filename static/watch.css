@@ -270,3 +270,47 @@ button, input, textarea { font-family: inherit; }
           .chrome-download-link:hover {
               text-decoration: underline;
           } 
+
+
+          .top-bar{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:12px;
+            margin-bottom:20px;
+        }
+        
+        .back{
+            display:inline-block;
+            margin-bottom:0;              /* өмнөх 20px-ийг болиулна */
+            color:#6366f1;
+            text-decoration:none;
+            font-weight:600;
+            min-width:0;
+            overflow:hidden;
+            text-overflow:ellipsis;
+            white-space:nowrap;
+        }
+        
+        .home-btn{
+            flex:0 0 auto;
+            padding:8px 16px;
+            background:#fff;
+            border:1px solid #e5e7eb;
+            border-radius:10px;
+            color:#1f2937;
+            text-decoration:none;
+            font-size:14px;
+            font-weight:600;
+            transition:.2s ease;
+        }
+        
+        .home-btn:hover{
+            border-color:#6366f1;
+            background:#f5f3ff;
+            color:#4f46e5;
+        }
+        
+        @media (max-width:520px){
+            .home-btn{padding:7px 12px; font-size:13px}
+        }

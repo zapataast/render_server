@@ -105,6 +105,18 @@ def init_comments_table():
             KEY idx_video (video_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     """
+    favorite_anime_sql = """
+        CREATE TABLE IF NOT EXISTS favorite_anime (
+            id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            user_id     VARCHAR(64) NOT NULL,
+            anime_id    VARCHAR(64) NOT NULL,
+            created_at  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_user_anime (user_id, anime_id),
+            KEY idx_anime (anime_id),
+            KEY idx_user_created (user_id, created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    """
     conn = get_conn()
     try:
         cur = conn.cursor()
@@ -112,6 +124,7 @@ def init_comments_table():
         cur.execute(sql2)
         cur.execute(sql_comments)
         cur.execute(watchsql)
+        cur.execute(favorite_anime_sql)
         cur.close()
     finally:
         conn.close()
@@ -542,3 +555,50 @@ def list_all_watches(page=1, per_page=50, user_id=None, q=None):
         return total, rows
     finally:
         conn.close()
+
+
+
+def is_favorite(user_id, anime_id) -> bool:
+    conn = get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM favorite_anime WHERE user_id=%s AND anime_id=%s LIMIT 1",
+                    (str(user_id), str(anime_id)))
+        found = cur.fetchone() is not None
+        cur.close()
+        return found
+    finally:
+        conn.close()
+
+
+def toggle_favorite(user_id, anime_id) -> bool:
+    """Нэмсэн бол True, хассан бол False буцаана."""
+    conn = get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM favorite_anime WHERE user_id=%s AND anime_id=%s",
+                    (str(user_id), str(anime_id)))
+        if cur.rowcount:                 # байсан тул хасагдлаа
+            cur.close()
+            return False
+        cur.execute("INSERT IGNORE INTO favorite_anime (user_id, anime_id) VALUES (%s, %s)",
+                    (str(user_id), str(anime_id)))
+        cur.close()
+        return True
+    finally:
+        conn.close()
+
+
+def get_user_favorites(user_id, limit=100) -> list[str]:
+    """Хэрэглэгчийн дуртай anime_id-ууд (шинэ нь эхэнд)."""
+    conn = get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute("""SELECT anime_id FROM favorite_anime
+                       WHERE user_id=%s ORDER BY created_at DESC LIMIT %s""",
+                    (str(user_id), int(limit)))
+        ids = [r[0] for r in cur.fetchall()]
+        cur.close()
+        return ids
+    finally:
+        conn.close()        

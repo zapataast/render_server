@@ -1786,6 +1786,18 @@ def playback_end():
     )
     return "", 204
 
+@app.post("/api/favorites/toggle")
+def api_favorite_toggle():
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "unauthorized"}), 401
+
+    data = request.get_json(silent=True) or {}
+    anime_id = str(data.get("anime_id") or "").strip()
+    if not anime_id:
+        return jsonify({"error": "anime_id required"}), 400
+
+    return jsonify({"favorite": toggle_favorite(user["_id"], anime_id)})
 def save_watch_history(user, video):
     anime_id = video.get("anime_id")
     print("🐍 File: render_server/app.py | Line: 1716 | save_watch_history ~ anime_id",anime_id)
@@ -2090,7 +2102,38 @@ def profile():
 
         return redirect(url_for("profile"))
 
-    return render_template("profile.html", user=user, display_phone=display_phone)
+    
+    fav_ids = get_user_favorites(user["_id"], limit=60)
+    history_rows = get_user_history(user["_id"], limit=30)
+
+    # Хоёр жагсаалтын anime-г Mongo-оос нэг дор авах
+    need = list({*fav_ids, *[h["anime_id"] for h in history_rows]})
+    animes = {}
+    if need:
+        for a in anime_collection.find(            # <-- өөрийн anime collection-ийн нэр
+            {"_id": {"$in": [_to_query_id(i) for i in need]}},
+            {"name": 1, "image_url": 1},
+        ):
+            animes[str(a["_id"])] = a
+
+    favorites = [
+        {"id": i, "name": animes[i].get("name"), "image": animes[i].get("image_url")}
+        for i in fav_ids if i in animes
+    ]
+    history = []
+    for h in history_rows:
+        a = animes.get(h["anime_id"], {})
+        history.append({
+            "anime_id": h["anime_id"],
+            "video_id": h["video_id"],
+            "anime_name": a.get("name") or "—",
+            "episode": h["name"] or "",
+            "image": a.get("image_url"),
+            "watched_at": h["watched_at"] + timedelta(hours=8),   # Улаанбаатар
+        })
+
+    return render_template("profile.html", user=user, history=history,
+    display_phone=display_phone , favorites=favorites)
 
 
 @app.post("/profile/image")
@@ -2563,7 +2606,9 @@ def create_home_comment():
 
 @app.route("/anime/<anime_id>")
 def anime_detail(anime_id):
+    
     if get_current_user():   
+        user_id = get_current_user().get('_id')
         if not ObjectId.is_valid(anime_id):
             abort(404)
 
@@ -2619,7 +2664,7 @@ def anime_detail(anime_id):
 
 
         anime["genres"] = genres
-        paid_ids = get_paid_video_ids(get_current_user().get('_id'), videos)
+        paid_ids = get_paid_video_ids(user_id, videos)
 
         for v in videos:
             price_type = v.get("price_type", "free")
@@ -2636,9 +2681,14 @@ def anime_detail(anime_id):
                 "is_paid": is_paid,
                 "locked": locked,
             })
+
+        
+        fav = is_favorite(user_id, anime["id"]) if user_id else False
+  
         return render_template(
             "anime_detail.html",
             anime=anime,
+            is_favorite=fav,
             videos=video_list,
         )
     else:

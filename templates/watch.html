@@ -65,28 +65,23 @@ body {
         </div>
     </div>
 
-    {% if anime %}
+    <div class="top-bar">
 
-    <a
-        href="{{ url_for(
-            'anime_detail',
-            anime_id=anime.id
-        ) }}"
-        class="back"
-    >
-        ← {{ anime.name }} руу буцах
-    </a>
-
-    {% else %}
-
-    <a
-        href="/"
-        class="back"
-    >
-        ← Буцах
-    </a>
-
-    {% endif %}
+        {% if anime %}
+        <a href="{{ url_for('anime_detail', anime_id=anime.id) }}" class="back">
+            ← {{ anime.name }} руу буцах
+        </a>
+        {% else %}
+        <a href="/" class="back">
+            ← Буцах
+        </a>
+        {% endif %}
+    
+        <a href="/" class="home-btn">
+            🏠 Нүүр хуудас
+        </a>
+    
+    </div>
 
     <div class="player-card">
 

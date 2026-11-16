@@ -41,7 +41,21 @@
 
         <!-- INFO -->
         <div>
-            <h1 class="text-3xl md:text-4xl font-bold">{{ anime.name }}</h1>
+            <div class="flex items-start justify-between gap-4">
+                <h1 class="text-3xl md:text-4xl font-bold">{{ anime.name }}</h1>
+            
+                <button type="button" id="favBtn"
+                        data-anime-id="{{ anime.id }}"
+                        data-fav="{{ 1 if is_favorite else 0 }}"
+                        onclick="toggleFavorite(this)"
+                        aria-pressed="{{ 'true' if is_favorite else 'false' }}"
+                        class="shrink-0 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition
+                               border-rose-500/40 text-rose-300 hover:bg-rose-500/10
+                               data-[fav='1']:bg-rose-500/20 data-[fav='1']:border-rose-400">
+                    <span id="favIcon">{{ '♥' if is_favorite else '♡' }}</span>
+                    <span id="favText">{{ 'Дуртайд нэмсэн' if is_favorite else 'Дуртайд нэмэх' }}</span>
+                </button>
+            </div>
 
             <div class="flex flex-wrap gap-2 mt-4">
                 <span class="bg-slate-800 px-3 py-1 rounded-full text-sm">
@@ -450,6 +464,44 @@
     document.addEventListener("keydown", e => {
         if (e.key === "Escape") closePayModal();
     });
+
+
+
+    let favBusy = false;
+
+async function toggleFavorite(btn) {
+    if (favBusy) return;
+    favBusy = true;
+    btn.disabled = true;
+
+    try {
+        const r = await fetch("/api/favorites/toggle", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({anime_id: btn.dataset.animeId})
+        });
+
+        if (r.status === 401) {
+            window.location.href = "/login?next=" + encodeURIComponent(location.pathname);
+            return;
+        }
+        if (!r.ok) throw new Error("Алдаа гарлаа");
+
+        const d = await r.json();
+        btn.dataset.fav = d.favorite ? "1" : "0";
+        btn.setAttribute("aria-pressed", d.favorite);
+        document.getElementById("favIcon").textContent = d.favorite ? "♥" : "♡";
+        document.getElementById("favText").textContent =
+            d.favorite ? "Дуртайд нэмсэн" : "Дуртайд нэмэх";
+    } catch (e) {
+        console.error(e);
+        alert("Дуртайд нэмэхэд алдаа гарлаа. Дахин оролдоно уу.");
+    } finally {
+        favBusy = false;
+        btn.disabled = false;
+    }
+}
 </script>
 
 </body>
