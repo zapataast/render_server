@@ -265,9 +265,48 @@ body {
 ></script>
 <script>
   const PB_TOKEN = "{{ token }}";
+  const MAX_RETRY = 2;   // server STRIKE_LIMIT=4 (30 сек) — анхны алдаа + retry үүнд хүрэхгүй байх ёстой
   let pingTimer = null;
-    const vid = document.getElementById("player");
+  let playbackDead = false;   // token хүчингүй / нэвтрэлт дууссан бол true — дахин оролдохгүй
+  const vid = document.getElementById("player");
+
+  // Хэрэглэгчид харагдах анхааруулга (нэг л banner, дахин дуудвал текстийг нь солино)
+  function warn(msg) {
+    let el = document.getElementById("playbackWarn");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "playbackWarn";
+      el.setAttribute("role", "alert");
+      el.style.cssText =
+        "position:fixed;left:50%;top:16px;transform:translateX(-50%);z-index:9999;" +
+        "max-width:calc(100% - 32px);padding:12px 16px;border-radius:10px;" +
+        "background:#b91c1c;color:#fff;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.25);" +
+        "display:flex;gap:12px;align-items:center;";
+      const text = document.createElement("span");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = "Дахин ачаалах";
+      btn.style.cssText =
+        "border:0;border-radius:6px;padding:6px 10px;background:#fff;color:#b91c1c;" +
+        "font-weight:600;cursor:pointer;white-space:nowrap;";
+      btn.onclick = () => location.reload();
+      el.append(text, btn);
+      document.body.append(el);
+    }
+    el.firstChild.textContent = msg;
+  }
+
+  function stopPlayback(msg) {
+    if (playbackDead) return;
+    playbackDead = true;
+    clearInterval(pingTimer);
+    vid.pause();
+    warn(msg);
+  }
+
+  // Буцаах утга: HTTP статус (сүлжээний алдаа бол 0)
   async function ping() {
+    if (playbackDead) return 409;
     try {
       const r = await fetch("/playback/ping", {
         method: "POST",
@@ -276,40 +315,73 @@ body {
         body: JSON.stringify({t: PB_TOKEN, ct: vid.currentTime, p: vid.paused , d : vid.duration || null}),
         keepalive: true,
       });
-      console.log("🚀 ~ ping ~ r:", r)
       if (r.status === 409) {
         console.warn("[PING] 409: энэ tab хүчингүй болсон");
-        warn("Энэ хуудас хүчингүй болсон (өөр анги эсвэл өөр цонхон дээр нээгдсэн). Дахин ачаална уу.");
-        clearInterval(pingTimer);
-        return;
+        stopPlayback("Энэ хуудас хүчингүй болсон (өөр анги эсвэл өөр цонхон дээр нээгдсэн). Дахин ачаална уу.");
+      } else if (r.status === 401) {
+        stopPlayback("Нэвтрэлт дууссан байна. Дахин нэвтэрнэ үү.");
+      } else if (!r.ok) {
+        console.warn("[PING] failed", r.status);
       }
-      if (r.status === 401) {
-
-        warn("Нэвтрэлт дууссан байна. Дахин нэвтэрнэ үү.");
-        return;
-      }
-   
-      if (!r.ok) console.warn("[PING] failed", r.status);
+      return r.status;
     } catch (e) {
       console.warn("[PING] error", e);
+      return 0;
     }
   }
 
   ping();
   pingTimer = setInterval(ping, 15000);
 
-  ["seeking", "seeked", "play", "pause"].forEach(ev => vid.addEventListener(ev, ping));
+  // Progress bar чирэхэд "seeking" олон арван удаа гарна — тус бүрд ping явуулбал
+  // server-т Mongo update + save_progress давхардана. Throttle хийнэ:
+  // эхнийх нь шууд явна (server position_ok хурдан шинэчлэгдэнэ),
+  // дараагийнх нь 300ms дотор нэг л удаа, хамгийн сүүлийн байрлалаар явна.
+  const SEEK_PING_GAP = 300;
+  let lastSeekPing = 0;
+  let seekPingTimer = null;
+  function throttledPing() {
+    const wait = SEEK_PING_GAP - (Date.now() - lastSeekPing);
+    if (wait <= 0) {
+      clearTimeout(seekPingTimer);
+      seekPingTimer = null;
+      lastSeekPing = Date.now();
+      ping();
+    } else if (!seekPingTimer) {
+      seekPingTimer = setTimeout(() => {
+        seekPingTimer = null;
+        lastSeekPing = Date.now();
+        ping();
+      }, wait);
+    }
+  }
 
-  // Server 429 (хэт олон хүсэлт) буцаахад видео алдаа өгнө.
-  // Хэдэн секунд хүлээгээд байсан байрлалаас нь дахин ачаална.
+  vid.addEventListener("seeking", throttledPing);
+  ["play", "pause"].forEach(ev => vid.addEventListener(ev, ping));
+
+  // <video> нь HTTP статусыг JS-д өгдөггүй тул 403/429-ийг ялгаж чадахгүй.
+  // Тиймээс retry хийхээсээ өмнө ping-ээр token амьд эсэхийг шалгаж,
+  // server-ийн position-ийг шинэчилсний дараа л дахин ачаална.
   let retryCount = 0;
   let retryResetTimer = null;
+  let retryPending = false;
   vid.addEventListener("error", () => {
-    if (retryCount >= 3) return;          // 403 (revoke) бол дахин оролдох нь утгагүй
+    if (playbackDead || retryPending) return;
+    if (retryCount >= MAX_RETRY) {
+      stopPlayback("Видео ачаалахад алдаа гарлаа. Хуудсыг дахин ачаална уу.");
+      return;
+    }
     retryCount++;
+    retryPending = true;
     const t = vid.currentTime;
     const wasPlaying = !vid.paused;
-    setTimeout(() => {
+    setTimeout(async () => {
+      const status = await ping();   // pos-ийг шинэчилнэ; 409/401 бол stopPlayback дуудагдана
+      retryPending = false;
+      if (playbackDead || status === 0) {
+        if (!playbackDead) stopPlayback("Сүлжээний холболт тасарлаа. Хуудсыг дахин ачаална уу.");
+        return;
+      }
       vid.load();
       vid.addEventListener("loadedmetadata", () => {
         vid.currentTime = t;
