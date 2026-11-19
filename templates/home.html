@@ -173,7 +173,7 @@
       </span>
     </div>
     <div class="mt-3 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-      <div class="h-full bg-amber-400" style="width: {{ continue_item.percent }}%"></div>
+      <div class="h-full bg-amber-400 w-[var(--p)]" style="--p: {{ continue_item.percent|int }}%"></div>
     </div>
   </a>
   {% endif %}
