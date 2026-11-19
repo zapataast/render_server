@@ -14,9 +14,9 @@ import mysql.connector
 DB_CONFIG = {
     "host": os.getenv("mysqlhost", "localhost"),
     "port": int(os.getenv("mysqlport", "3306")),
-    "user": os.getenv("dbuser"),
-    "password": os.getenv("dbuser_pass"),
-    "database": os.getenv("mysqldb"),
+    "user": os.getenv("dbuser","root"),
+    "password": os.getenv("dbuser_pass","it#2016"),
+    "database": os.getenv("mysqldb",'mysqldb'),
     "charset": "utf8mb4",
     "collation": "utf8mb4_unicode_ci",
     "autocommit": True,
@@ -117,6 +117,23 @@ def init_comments_table():
             KEY idx_user_created (user_id, created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     """
+    sql_watch_progress = """
+        CREATE TABLE IF NOT EXISTS watch_progress (
+            id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            user_id      VARCHAR(64) NOT NULL,
+            video_id     VARCHAR(64) NOT NULL,
+            anime_id     VARCHAR(64) NULL,
+            current_time_sec DOUBLE NOT NULL DEFAULT 0,
+            duration_sec DOUBLE NULL,
+            completed    TINYINT(1) NOT NULL DEFAULT 0,
+            created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                         ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_user_video (user_id, video_id),
+            KEY idx_user_updated (user_id, updated_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    """
     conn = get_conn()
     try:
         cur = conn.cursor()
@@ -125,9 +142,53 @@ def init_comments_table():
         cur.execute(sql_comments)
         cur.execute(watchsql)
         cur.execute(favorite_anime_sql)
+        cur.execute(sql_watch_progress)
         cur.close()
     finally:
         conn.close()
+
+def save_progress(user_id, video_id, anime_id, current, duration):
+    current = max(0.0, float(current or 0))
+    duration = float(duration) if duration else None
+    # 95%+ үзсэн бол дууссан гэж үзнэ, дараагийн удаа эхнээс нь эхэлнэ
+    completed = 1 if duration and current >= duration * 0.95 else 0
+
+    sql = """
+        INSERT INTO watch_progress
+            (user_id, video_id, anime_id, current_time_sec, duration_sec, completed)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+            current_time_sec = VALUES(current_time_sec),
+            duration_sec     = COALESCE(VALUES(duration_sec), duration_sec),
+            completed        = VALUES(completed),
+            anime_id         = COALESCE(VALUES(anime_id), anime_id)
+    """
+    conn = get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute(sql, (str(user_id), str(video_id),
+                          str(anime_id) if anime_id else None,
+                          current, duration, completed))
+        cur.close()
+    finally:
+        conn.close()
+
+
+def get_progress(user_id, video_id):
+    """Үргэлжлүүлэх секунд. Дууссан эсвэл байхгүй бол 0."""
+    conn = get_conn()
+    try:
+        cur = conn.cursor(dictionary=True)
+        cur.execute("""SELECT current_time_sec, completed FROM watch_progress
+                       WHERE user_id=%s AND video_id=%s""",
+                    (str(user_id), str(video_id)))
+        row = cur.fetchone()
+        cur.close()
+    finally:
+        conn.close()
+    if not row or row["completed"]:
+        return 0.0
+    return float(row["current_time_sec"])
 def get_comments(video_id: str, limit: int = 20, offset: int = 0) -> list[dict]:
     limit = max(1, min(int(limit), 100))
     offset = max(0, int(offset))
@@ -556,8 +617,6 @@ def list_all_watches(page=1, per_page=50, user_id=None, q=None):
     finally:
         conn.close()
 
-
-
 def is_favorite(user_id, anime_id) -> bool:
     conn = get_conn()
     try:
@@ -602,3 +661,31 @@ def get_user_favorites(user_id, limit=100) -> list[str]:
         return ids
     finally:
         conn.close()        
+
+def get_continue_watching(user_id, limit=10):
+    """Дуусаагүй, сүүлд үзсэн ангиуд (anime тус бүрт нэг)."""
+    conn = get_conn()
+    try:
+        cur = conn.cursor(dictionary=True)
+        cur.execute("""
+            SELECT video_id, anime_id, current_time_sec, duration_sec, updated_at
+            FROM watch_progress
+            WHERE user_id = %s AND completed = 0 AND current_time_sec > 5
+            ORDER BY updated_at DESC
+            LIMIT %s
+        """, (str(user_id), int(limit) * 3))
+        rows = cur.fetchall()
+        cur.close()
+    finally:
+        conn.close()
+
+    seen, result = set(), []
+    for r in rows:
+        key = r["anime_id"] or r["video_id"]
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(r)
+        if len(result) >= limit:
+            break
+    return result

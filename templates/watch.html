@@ -41,7 +41,16 @@ body {
 </head>
 
 <body>
-
+<div id="resumeModal" class="resume-modal" role="dialog" aria-modal="true">
+    <div class="resume-box">
+        <h3>Үргэлжлүүлэх үү?</h3>
+        <p>Та энэ ангийг <b id="resumeTime">0:00</b>-аас үзсэн байна.</p>
+        <div class="resume-actions">
+            <button type="button" id="resumeNo" class="btn-ghost">Эхнээс нь</button>
+            <button type="button" id="resumeYes" class="btn-primary">Үргэлжлүүлэх</button>
+        </div>
+    </div>
+</div>
 <div class="page">
 
     <div class="browser-warning">
@@ -264,7 +273,7 @@ body {
         method: "POST",
         credentials: "same-origin",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({t: PB_TOKEN, ct: vid.currentTime, p: vid.paused}),
+        body: JSON.stringify({t: PB_TOKEN, ct: vid.currentTime, p: vid.paused , d : vid.duration || null}),
         keepalive: true,
       });
       console.log("🚀 ~ ping ~ r:", r)
@@ -296,6 +305,7 @@ body {
   });
 </script>
 <script>
+    
     const video = document.getElementById('player');
 
     const player = new Plyr('#player', {
@@ -314,6 +324,49 @@ body {
         ],
         settings: ['speed']
     });
+    const RESUME_AT = {{ resume_at|default(0)|float }}
+
+    function fmtTime(sec) {
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const s = Math.floor(sec % 60);
+        const mm = String(m).padStart(2, "0"), ss = String(s).padStart(2, "0");
+        return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
+    }
+    let resumeAsked = false;
+
+    function askResume() {
+        if (resumeAsked) return;            // нэг л удаа асууна
+        resumeAsked = true;
+
+        if (!(RESUME_AT > 5 && RESUME_AT < video.duration - 10)) return;
+
+            video.pause();
+            document.getElementById("resumeTime").textContent = fmtTime(RESUME_AT);
+            const modal = document.getElementById("resumeModal");
+            modal.classList.add("show");
+
+            const close = () => modal.classList.remove("show");
+
+            document.getElementById("resumeYes").onclick = () => {
+                video.currentTime = RESUME_AT;
+                close();
+                video.play().catch(() => {});
+            };
+            document.getElementById("resumeNo").onclick = () => {
+                video.currentTime = 0;
+                close();
+                video.play().catch(() => {});
+            };
+        }
+
+    if (video.readyState >= 1) askResume();
+    else video.addEventListener("loadedmetadata", askResume, { once: true });
+
+
+
+    console.log("RESUME AT " , RESUME_AT)
+  
 
     // =====================================================
     // DEBUG HELPERS

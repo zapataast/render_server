@@ -1760,21 +1760,37 @@ def playback_ping():
     user = get_current_user()
     if not user:
         return "", 401
+
     d = _get_json()
     now = time.time()
     ct = float(d.get("ct") or 0)
-    res = users_collection.update_one(
+
+    doc = users_collection.find_one_and_update(
         {"_id": user["_id"], "playback.token": d.get("t")},
         {"$set": {
             "playback.last_seen": now,
-            "playback.pos": float(d.get("ct") or 0),
+            "playback.pos": ct,
             "playback.pos_at": now,
             "playback.paused": bool(d.get("p", True)),
         }},
+        projection={"playback": 1},
+        return_document=ReturnDocument.AFTER,
     )
-    print(f"[PING] ct={ct:.1f}s paused={d.get('p')} matched={res.matched_count}")       
-    return ("", 204) if res.matched_count else ("", 409)
 
+    if not doc:
+        return "", 409          # өөр tab / хүчингүй token
+
+    pb = doc.get("playback") or {}
+    video_id = pb.get("video_id")       # <-- token үүсгэх үед хадгалсан талбарын нэр
+    anime_id = pb.get("anime_id")
+
+    if video_id and ct > 0:
+        try:
+            save_progress(user["_id"], video_id, anime_id, ct, d.get("d"))
+        except Exception as e:
+            print("[progress] save failed:", e)    # ping-ийг унагаахгүй
+
+    return "", 204
 @app.route("/playback/end", methods=["POST"])
 def playback_end():
     user = get_current_user()
@@ -1785,7 +1801,6 @@ def playback_end():
         {"$unset": {"playback": ""}}
     )
     return "", 204
-
 @app.post("/api/favorites/toggle")
 def api_favorite_toggle():
     user = get_current_user()
@@ -2029,6 +2044,8 @@ def watch_video(video_id):
 
             if next_video:
                 next_video["id"] = str(next_video["_id"])
+
+    resume_at = get_progress(user["_id"], str(video["_id"])) if user else 0
     stream_url = url_for("stream_video", video_id=str(video["_id"]), t=token)
     return render_template(
         "watch.html",
@@ -2036,6 +2053,7 @@ def watch_video(video_id):
         anime=anime,
         prev_video=prev_video,
         token=token,
+        resume_at=resume_at,
         next_video=next_video,
         stream_url=stream_url,
         
@@ -2101,8 +2119,6 @@ def profile():
             flash("Энэ email өөр хэрэглэгч дээр бүртгэлтэй байна.", "danger")
 
         return redirect(url_for("profile"))
-
-    
     fav_ids = get_user_favorites(user["_id"], limit=60)
     history_rows = get_user_history(user["_id"], limit=30)
 
@@ -2539,6 +2555,31 @@ def home():
         })
     end = time.time()
     print(compute_spend_time(start,end, "home page load"))
+
+    continue_item = None
+    user = get_current_user()
+    if user:
+        try:
+            rows = get_continue_watching(user["_id"], limit=1)
+            if rows:
+                r = rows[0]
+                v = videos_collection.find_one(
+                    {"_id": _to_query_id(r["video_id"])},
+                    {"title": 1, "episode_number": 1, "anime_id": 1})
+                if v:
+                    a = anime_collection.find_one(
+                        {"_id": _to_query_id(str(v.get("anime_id")))},
+                        {"name": 1}) or {}
+                    dur = r["duration_sec"] or 0
+                    continue_item = {
+                        "video_id": r["video_id"],
+                        "anime_name": a.get("name") or "—",
+                        "episode": v.get("episode_number"),
+                        "title": v.get("title") or "",
+                        "percent": min(100, int(r["current_time_sec"] / dur * 100)) if dur else 0,
+                    }
+        except Exception as e:
+            print("[continue] failed:", e)
     return render_template(
         "home.html",
 
@@ -2546,6 +2587,7 @@ def home():
         slides=slides,
         anime_list=anime_list,
         has_more=has_more,  
+        continue_item=continue_item,
         latest_episodes=latest_episodes,
         comments=comments,
         display_phone=display_phone,
@@ -2681,10 +2723,7 @@ def anime_detail(anime_id):
                 "is_paid": is_paid,
                 "locked": locked,
             })
-
-        
         fav = is_favorite(user_id, anime["id"]) if user_id else False
-  
         return render_template(
             "anime_detail.html",
             anime=anime,
