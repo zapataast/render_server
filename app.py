@@ -149,7 +149,7 @@ DOWNLOAD_CATEGORIES = {
 end = time.time()
 print(compute_spend_time(start,end, "starting..."))
 MAX_COVER_SIZE = 5 * 1024 * 1024
-VERCEL_RANGE_SIZE = 25 * 1024 * 1024  # 8 MB TELEGRAM butsaah hemjee 1 udaagiin
+VERCEL_RANGE_SIZE = 12 * 1024 * 1024  # 8 MB TELEGRAM butsaah hemjee 1 udaagiin
 ACTIVE_TTL = 90  # секунд. ping ирэхгүй бол сесс дууссанд тооцно
         
 AHEAD = 400          # секунд: одоогийн байрлалаас урагш зөвшөөрөх хэмжээ
@@ -161,19 +161,31 @@ STRIKES = {}         # token -> [цагууд]
 from collections import deque
 
 WINDOW = 10          # секунд
-MAX_REQ = 4          # цонх дотор зөвшөөрөх хүсэлт
+MAX_REQ = 12         # цонх дотор зөвшөөрөх хүсэлт (seek хурдан гүйлгэхэд хүрэхгүй байхаар)
+HARD_MAX_REQ = 30    # үүнээс давбал token-ийг хүчингүй болгоно
 REQS = {}            # token -> deque(цагууд)
 REQS_LOCK = threading.Lock()
 
+RATE_OK, RATE_SLOW, RATE_REVOKE = 0, 1, 2
+
 def check_rate(token):
-    """True = зөвшөөрнө, False = 5 дахь хүсэлт (strike)"""
+    """
+    RATE_OK     = зөвшөөрнө
+    RATE_SLOW   = MAX_REQ давсан: 429 буцааж түр хүлээлгэнэ (token хэвээр)
+    RATE_REVOKE = HARD_MAX_REQ давсан: token хүчингүй
+    """
     now = time.time()
     with REQS_LOCK:
         q = REQS.setdefault(token, deque())
         while q and now - q[0] > WINDOW:
             q.popleft()
         q.append(now)
-        return len(q) <= MAX_REQ
+        n = len(q)
+    if n > HARD_MAX_REQ:
+        return RATE_REVOKE
+    if n > MAX_REQ:
+        return RATE_SLOW
+    return RATE_OK
 
 def revoke_token(token):
     REQS.pop(token, None)
@@ -1925,7 +1937,7 @@ def record_purchase(user_id, video_id, amount=0, payment_id=None, provider=None)
             {
                 "$setOnInsert": {
                     "user_id": user_id,
-                    "video_id": video_oid,
+                    "video_id": str(video_oid),
                     "amount": amount,
                     "payment_id": payment_id,   # QPay invoice/transaction id
                     "provider": 'paylink',       # "qpay", "card" гэх мэт
@@ -1972,8 +1984,6 @@ def watch_video(video_id):
     price_type = video.get('price_type' , 'free') 
 
     print("🌠 🌠 🌠 price_type : " , price_type)
-    if price_type != 'free': 
-        _licence = __compute_user_license(video["_id"], user , vtype='video')
 
     save_watch_history(user, video)   
 
@@ -2924,10 +2934,6 @@ def stream_video(video_id):
         print("❌❌ Нэг browser-оос ирсэн эсэх")
         abort(403)
 
-    if request.headers.get("Sec-Fetch-Dest") != "video":
-        print("❌❌ <video> элементээс ирсэн хүсэлт эсэх")
-        abort(403)
-
     video = videos_collection.find_one({
         "_id": ObjectId(video_id),
         "is_uploaded": True,
@@ -2937,9 +2943,11 @@ def stream_video(video_id):
         abort(404)
 
     if video.get('price_type', 'free') != 'free':
+        # user_id / video_id нь зарим бичлэгт str, заримд ObjectId байдаг тул хоёуланг нь хайна.
         pur = purchases_collection.find_one({
-            "user_id": str(get_current_user().get('_id')),
-            "video_id":str(video_id)
+            "user_id": {"$in": [str(user["_id"]), user["_id"]]},
+            "video_id": {"$in": [str(video_id), ObjectId(video_id)]},
+            "status": "paid",
         })
         if pur is None:
             print("❌❌ видеог худалдаж аваагүй байна")
@@ -3062,10 +3070,14 @@ def stream_video(video_id):
         headers["Content-Range"] = (
             f"bytes {start}-{end}/{file_size}"
         )
-    if not check_rate(tok):
-        print("[STREAM BLOCK] rate", tok[:6])
+    rate = check_rate(tok)
+    if rate == RATE_REVOKE:
+        print("[STREAM BLOCK] rate revoke", tok[:6])
         revoke_token(tok)
         return jsonify(error="revoked"), 403
+    if rate == RATE_SLOW:
+        print("[STREAM SLOW] rate", tok[:6])
+        return jsonify(error="too_many_requests"), 429, {"Retry-After": "2"}
 
     return Response(
         stream_with_context(

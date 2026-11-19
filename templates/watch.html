@@ -300,6 +300,28 @@ body {
 
   ["seeking", "seeked", "play", "pause"].forEach(ev => vid.addEventListener(ev, ping));
 
+  // Server 429 (хэт олон хүсэлт) буцаахад видео алдаа өгнө.
+  // Хэдэн секунд хүлээгээд байсан байрлалаас нь дахин ачаална.
+  let retryCount = 0;
+  let retryResetTimer = null;
+  vid.addEventListener("error", () => {
+    if (retryCount >= 3) return;          // 403 (revoke) бол дахин оролдох нь утгагүй
+    retryCount++;
+    const t = vid.currentTime;
+    const wasPlaying = !vid.paused;
+    setTimeout(() => {
+      vid.load();
+      vid.addEventListener("loadedmetadata", () => {
+        vid.currentTime = t;
+        if (wasPlaying) vid.play().catch(() => {});
+      }, { once: true });
+    }, 2500);
+  }, true);
+  vid.addEventListener("playing", () => {
+    clearTimeout(retryResetTimer);
+    retryResetTimer = setTimeout(() => { retryCount = 0; }, 30000);
+  });
+
   window.addEventListener("pagehide", () => {
     navigator.sendBeacon("/playback/end", JSON.stringify({t: PB_TOKEN}));
   });
