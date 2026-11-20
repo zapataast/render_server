@@ -3971,6 +3971,7 @@ def admin_delete_all_videos():
     "/api/admin/files/upload",
     methods=["POST"],
 )
+@admin_required
 def admin_upload_file():
 
     uploaded_file = (
@@ -4100,13 +4101,9 @@ def admin_upload_file():
         # TELEGRAM
         # ======================================
 
-        telegram_result = (
-            asyncio.run(
-                upload_file_to_telegram(
-                    temp_path,
-                    caption=name,
-                )
-            )
+        telegram_result = upload_file_to_telegram_sync(
+            temp_path,
+            caption=name,
         )
 
 
@@ -4364,11 +4361,9 @@ def upload_admin_file():
         # TELEGRAM UPLOAD
         # =================================================
 
-        telegram_result = run_async(
-            upload_file_to_telegram(
-                temp_path,
-                original_filename,
-            )
+        telegram_result = upload_file_to_telegram_sync(
+            temp_path,
+            caption=original_filename,
         )
 
 
@@ -4891,12 +4886,10 @@ def admin_upload():
                     "mp4", "mkv", "mov", "webm", "avi"
                 }
 
-                upload_result = asyncio.run(
-                    upload_video_to_telegram(
-                        file_path,
-                        caption=title,
-                        is_video=is_video
-                    )
+                upload_result = upload_video_to_telegram_sync(
+                    file_path,
+                    caption=title,
+                    is_video=is_video,
                 )
 
                 if not upload_result or not upload_result.get("success"):
