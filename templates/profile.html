@@ -1,61 +1,53 @@
 {% extends "base.html" %}
 {% block title %}Profile{% endblock %}
 {% block body %}
-<header>
-  <a
-            href="/"
-            class="brand"
-        >
-
-            <div class="brand-icon">
-                N
-            </div>
-
-            <span>
-                Нүүр хуудас
-            </span>
-
-        </a>
-  <link rel="stylesheet" href="{{ url_for('static', filename='dark.css', v=2) }}">
-  <link rel="icon" type="image/png" href="{{url_for('static', filename='site/log.PNG')}}">
-  <nav><a href="{{url_for('logout')}}">Гарах</a></nav>
-</header>
+<link rel="stylesheet" href="{{ url_for('static', filename='dark.css', v=3) }}">
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='site/log.PNG') }}">
 <style>
-
 @font-face {
-    font-family: "NataSans";
-    src: url("{{ url_for('static', filename='Inter_28pt-Medium.ttf') }}") format("truetype");
-    font-weight: 500;
-    font-style: normal;
-    font-display: swap;
+  font-family: "NataSans";
+  src: url("{{ url_for('static', filename='Inter_28pt-Medium.ttf') }}") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
 }
-
-body {
-    font-family: "NataSans", Arial, sans-serif;
-    font-weight: 500;
-    margin: 0;
-    background: #f5f6fa;
-    color: #1f2937;
-}
+body { font-family: "NataSans", Arial, sans-serif; font-weight: 500; }
 </style>
+
+<header>
+  <a href="/" class="brand">
+    <div class="brand-icon">N</div>
+    <span>Нүүр хуудас</span>
+  </a>
+  <nav><a class="logout" href="{{ url_for('logout') }}">Гарах</a></nav>
+</header>
+
 <main>
   {% with messages=get_flashed_messages(with_categories=true) %}
     {% for c,m in messages %}<div class="alert {{c}}">{{m}}</div>{% endfor %}
   {% endwith %}
+
+  <div class="profile-hero">
+    <div>
+      <h1>{{ user.nickname }}</h1>
+      <p>+976 {{ display_phone(user.phone) }}</p>
+    </div>
+  </div>
+
   <div class="grid">
     <section class="card profile-photo">
       <h2>Profile зураг</h2>
       {% if user.profile_image_url %}
-        <img class="big-avatar" src="{{user.profile_image_url}}" style="--profile-scale: {{ PROFILE_IMAGE_SCALE }};"> 
+        <img class="big-avatar" src="{{ user.profile_image_url }}" alt="" style="--profile-scale: {{ PROFILE_IMAGE_SCALE }};">
       {% else %}
-      <div class="big-avatar fallback" style="--profile-scale: {{ PROFILE_IMAGE_SCALE }};">{{ user.nickname[:1]|upper }}</div>
+        <div class="big-avatar fallback" style="--profile-scale: {{ PROFILE_IMAGE_SCALE }};">{{ user.nickname[:1]|upper }}</div>
       {% endif %}
-      <form action="{{url_for('upload_profile_image')}}" method="post" enctype="multipart/form-data">
+      <form action="{{ url_for('upload_profile_image') }}" method="post" enctype="multipart/form-data">
         <input id="img" type="file" name="profile_image" accept=".jpg,.jpeg,.png,.webp" hidden onchange="this.form.submit()">
         <label class="filebtn" for="img">Зураг сонгох</label>
       </form>
       {% if user.profile_image_url %}
-      <form action="{{url_for('remove_profile_image')}}" method="post">
+      <form action="{{ url_for('remove_profile_image') }}" method="post">
         <button class="danger">Зураг устгах</button>
       </form>
       {% endif %}
@@ -65,22 +57,20 @@ body {
     <section class="card">
       <h2>Хувийн мэдээлэл</h2>
       <form method="post">
-        <label>Утас</label><div class="readonly">+976 {{display_phone(user.phone)}}</div>
-        <label>Nickname</label><input name="nickname" value="{{user.nickname}}" maxlength="50" required>
-        <label>Email</label><input type="email" name="email" value="{{user.email or ''}}" placeholder="name@example.com">
-        <label>Төрсөн огноо</label><input type="date" name="birthdate" value="{{user.birthdate or ''}}">
-        <label>Bio</label><textarea name="bio" maxlength="500" rows="5">{{user.bio or ''}}</textarea>
+        <label>Утас</label><div class="readonly">+976 {{ display_phone(user.phone) }}</div>
+        <label>Nickname</label><input name="nickname" value="{{ user.nickname }}" maxlength="50" required>
+        <label>Email</label><input type="email" name="email" value="{{ user.email or '' }}" placeholder="name@example.com">
+        <label>Төрсөн огноо</label><input type="date" name="birthdate" value="{{ user.birthdate or '' }}">
+        <label>Bio</label><textarea name="bio" maxlength="500" rows="5">{{ user.bio or '' }}</textarea>
         <button>Хадгалах</button>
       </form>
     </section>
   </div>
 
-
-
   <section class="card wide">
     <div class="sec-head">
       <h2>♥ Дуртай анимэ</h2>
-      <span class="muted">{{ favorites|length }}</span>
+      <span class="muted count">{{ favorites|length }}</span>
     </div>
     {% if favorites %}
     <div class="poster-grid">
@@ -95,11 +85,11 @@ body {
     <p class="empty">Дуртай анимэ алга.</p>
     {% endif %}
   </section>
-  
+
   <section class="card wide">
     <div class="sec-head">
       <h2>🕘 Үзсэн түүх</h2>
-      <span class="muted">{{ history|length }}</span>
+      <span class="muted count">{{ history|length }}</span>
     </div>
     {% if history %}
     <div class="hist-list">
