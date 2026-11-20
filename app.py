@@ -2930,9 +2930,7 @@ def stream_video(video_id):
     if time.time() - pb.get("last_seen", 0) > ACTIVE_TTL:
         print("❌❌ Хуудас нээлттэй биш байна")
         abort(403)
-    if pb.get("ua") != request.headers.get("User-Agent", ""):
-        print("❌❌ Нэг browser-оос ирсэн эсэх")
-        abort(403)
+
 
     video = videos_collection.find_one({
         "_id": ObjectId(video_id),
