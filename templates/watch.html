@@ -270,15 +270,22 @@ body {
   let playbackDead = false;   // token хүчингүй / нэвтрэлт дууссан бол true — дахин оролдохгүй
   const vid = document.getElementById("player");
 
+  // Fullscreen үед зөвхөн fullscreen element харагддаг тул banner-ийг түүн дотор байрлуулна
+  function warnParent() {
+    return document.fullscreenElement || document.webkitFullscreenElement || document.body;
+  }
+
   // Хэрэглэгчид харагдах анхааруулга (нэг л banner, дахин дуудвал текстийг нь солино)
-  function warn(msg) {
+  // kind: "fatal" (тоглуулалт зогссон) | "net" (түр тасалдал, сэргэвэл алга болно)
+  function warn(msg, kind) {
     let el = document.getElementById("playbackWarn");
     if (!el) {
       el = document.createElement("div");
       el.id = "playbackWarn";
       el.setAttribute("role", "alert");
       el.style.cssText =
-        "position:fixed;left:50%;top:16px;transform:translateX(-50%);z-index:9999;" +
+        // z-index max: Plyr-ийн fallback fullscreen (iOS) z-index:10000000-аас дээр гарна
+        "position:fixed;left:50%;top:16px;transform:translateX(-50%);z-index:2147483647;" +
         "max-width:calc(100% - 32px);padding:12px 16px;border-radius:10px;" +
         "background:#b91c1c;color:#fff;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.25);" +
         "display:flex;gap:12px;align-items:center;";
@@ -291,18 +298,47 @@ body {
         "font-weight:600;cursor:pointer;white-space:nowrap;";
       btn.onclick = () => location.reload();
       el.append(text, btn);
-      document.body.append(el);
     }
+    const parent = warnParent();
+    if (el.parentNode !== parent) parent.append(el);
+    el.dataset.kind = kind || "fatal";
     el.firstChild.textContent = msg;
+    // Сүлжээгүй үед reload хийх нь утгагүй — товчийг нууна
+    el.lastChild.style.display = el.dataset.kind === "net" ? "none" : "";
   }
+
+  function hideWarn(kind) {
+    const el = document.getElementById("playbackWarn");
+    if (el && el.dataset.kind === kind) el.remove();
+  }
+
+  // Fullscreen руу орох/гарахад banner-ийг зөв parent руу зөөнө
+  ["fullscreenchange", "webkitfullscreenchange"].forEach(ev =>
+    document.addEventListener(ev, () => {
+      const el = document.getElementById("playbackWarn");
+      if (el && el.parentNode !== warnParent()) warnParent().append(el);
+    })
+  );
 
   function stopPlayback(msg) {
     if (playbackDead) return;
     playbackDead = true;
     clearInterval(pingTimer);
     vid.pause();
-    warn(msg);
+    // Видео бүрмөсөн зогссон тул fullscreen-ээс гаргаж мессежийг тод харуулна
+    try {
+      if (typeof player !== "undefined" && player.fullscreen && player.fullscreen.active) {
+        player.fullscreen.exit();
+      }
+    } catch (e) {}
+    warn(msg, "fatal");
   }
+
+  // Ping дараалан NET_FAIL_WARN удаа сүлжээний алдаа өгвөл banner харуулна
+  // (stalled үед <video> error event өгдөггүй тул ганц дохио нь энэ)
+  const NET_FAIL_WARN = 2;
+  let netFails = 0;
+  const NET_MSG = "Сүлжээний холболт тасарлаа. Холболт сэргэхийг хүлээж байна…";
 
   // Буцаах утга: HTTP статус (сүлжээний алдаа бол 0)
   async function ping() {
@@ -315,6 +351,9 @@ body {
         body: JSON.stringify({t: PB_TOKEN, ct: vid.currentTime, p: vid.paused , d : vid.duration || null}),
         keepalive: true,
       });
+      // Server хариу өгсөн = сүлжээ сэргэсэн
+      netFails = 0;
+      hideWarn("net");
       if (r.status === 409) {
         console.warn("[PING] 409: энэ tab хүчингүй болсон");
         stopPlayback("Энэ хуудас хүчингүй болсон (өөр анги эсвэл өөр цонхон дээр нээгдсэн). Дахин ачаална уу.");
@@ -326,12 +365,18 @@ body {
       return r.status;
     } catch (e) {
       console.warn("[PING] error", e);
+      netFails++;
+      if (netFails >= NET_FAIL_WARN && !playbackDead) warn(NET_MSG, "net");
       return 0;
     }
   }
 
   ping();
   pingTimer = setInterval(ping, 15000);
+
+  // Browser сүлжээ тасарсныг шууд мэдвэл хүлээлгүй харуулна; сэргэхэд ping-ээр шалгаж нууна
+  window.addEventListener("offline", () => { if (!playbackDead) warn(NET_MSG, "net"); });
+  window.addEventListener("online", () => { ping(); });
 
   // Progress bar чирэхэд "seeking" олон арван удаа гарна — тус бүрд ping явуулбал
   // server-т Mongo update + save_progress давхардана. Throttle хийнэ:
