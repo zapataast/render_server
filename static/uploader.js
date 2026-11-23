@@ -74,6 +74,35 @@ animeSelect.addEventListener('change', () => {
   if (opt?.dataset?.name && !videoTitle.value.trim()) videoTitle.value = opt.dataset.name;
 });
 
+// Мэдэгдлийн дуу (Web Audio — файл хэрэггүй). Browser autoplay дүрмээс болж
+// AudioContext-ийг submit (user gesture) үед unlock хийнэ.
+let audioCtx = null;
+function unlockAudio() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch { audioCtx = null; }
+}
+function playTones(notes) {
+  if (!audioCtx) return;
+  try {
+    const t0 = audioCtx.currentTime + 0.02;
+    notes.forEach(([freq, start, dur]) => {
+      const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, t0 + start);
+      gain.gain.exponentialRampToValueAtTime(0.25, t0 + start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + start + dur);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(t0 + start);
+      osc.stop(t0 + start + dur + 0.05);
+    });
+  } catch {}
+}
+const playSuccessSound = () => playTones([[660, 0, 0.18], [880, 0.15, 0.18], [1320, 0.3, 0.35]]);
+const playErrorSound = () => playTones([[300, 0, 0.25], [220, 0.22, 0.4]]);
+
 function clearResult() {
   document.getElementById('resultEmpty').classList.add('hidden');
   document.getElementById('resultSuccess').classList.add('hidden');
@@ -83,6 +112,7 @@ function errorResult(msg) {
   clearResult();
   document.getElementById('resultErrorText').textContent = msg;
   document.getElementById('resultError').classList.remove('hidden');
+  playErrorSound();
 }
 function successResult(data) {
   clearResult();
@@ -98,10 +128,12 @@ function successResult(data) {
   else if (!d.configured) state.textContent = 'Django callback тохируулаагүй';
   else state.textContent = 'Telegram OK · Django save failed';
   document.getElementById('resultSuccess').classList.remove('hidden');
+  playSuccessSound();
 }
 
 form.addEventListener('submit', e => {
   e.preventDefault();
+  unlockAudio();
   if (!fileInput.files.length) { errorResult('Video file сонгоно уу.'); return; }
   clearResult();
   uploadButton.disabled = true;
