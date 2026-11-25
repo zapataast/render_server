@@ -7,6 +7,20 @@
     <link rel="icon" type="image/png" href="{{url_for('static', filename='site/log.PNG')}}">
     <title>Anime</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @font-face {
+            font-family: "NataSans";
+            src: url("{{ url_for('static', filename='Inter_28pt-Medium.ttf') }}") format("truetype");
+            font-weight: 500;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        body {
+            font-family: "NataSans", Arial, sans-serif;
+            font-weight: 500;
+        }
+    </style>
 </head>
 
 <body class="bg-slate-950 text-white">
@@ -20,6 +34,12 @@
 
         <!-- RIGHT -->
         <div class="flex items-center gap-3">
+
+            <!-- ДАВУУ ТАЛУУД popup-ыг дахин нээх -->
+            <button id="features-open" type="button"
+                    class="hidden sm:inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/10 transition">
+                ✨ Давуу талууд
+            </button>
 
             {% if user %}
 
@@ -390,6 +410,104 @@
     </section>
 
 </div>
+
+
+<!-- ===================== FEATURES POPUP ===================== -->
+<div id="features-modal" class="hidden fixed inset-0 z-[200] items-center justify-center p-4"
+     role="dialog" aria-modal="true" aria-labelledby="features-title">
+
+    <!-- BACKDROP -->
+    <div data-features-close class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+
+    <!-- CARD -->
+    <div id="features-card"
+         class="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl bg-[#0f1424] border border-white/10 shadow-2xl shadow-indigo-900/30 p-6 sm:p-7 opacity-0 scale-95 transition duration-200">
+
+        <button type="button" data-features-close aria-label="Хаах"
+                class="absolute top-3 right-3 w-9 h-9 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition text-xl leading-none">
+            ×
+        </button>
+
+        <div class="text-xs font-bold uppercase tracking-wider text-indigo-400">Яагаад бид гэж?</div>
+        <h2 id="features-title" class="mt-1 text-2xl font-black text-white">Манай давуу талууд</h2>
+
+        <ul class="mt-6 space-y-4">
+            <li class="flex gap-4">
+                <span class="shrink-0 w-11 h-11 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center text-xl">🎁</span>
+                <div>
+                    <div class="font-semibold text-white">Эхний ангиуд үнэгүй</div>
+                    <div class="text-sm text-slate-400">Төлбөр төлөхөөс өмнө эхний ангиудыг үнэгүй үзээд сонголтоо хийгээрэй.</div>
+                </div>
+            </li>
+            <li class="flex gap-4">
+                <span class="shrink-0 w-11 h-11 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center text-xl">⏳</span>
+                <div>
+                    <div class="font-semibold text-white">Түрээсийн хугацаа 2 сар</div>
+                    <div class="text-sm text-slate-400">Түрээсэлсэн кино, ангиа 2 сарын турш хүссэн үедээ дахин үзэх боломжтой.</div>
+                </div>
+            </li>
+            <li class="flex gap-4">
+                <span class="shrink-0 w-11 h-11 rounded-xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center text-xl">📺</span>
+                <div>
+                    <div class="font-semibold text-white">Бүх анги 720p+ чанартай</div>
+                    <div class="text-sm text-slate-400">Бүх ангиуд 720p ба түүнээс дээш нягтралтай.</div>
+                </div>
+            </li>
+            <li class="flex gap-4">
+                <span class="shrink-0 w-11 h-11 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center text-xl">▶</span>
+                <div>
+                    <div class="font-semibold text-white">Үзсэн газраасаа үргэлжлүүлэх</div>
+                    <div class="text-sm text-slate-400">Хаана хүртэл үзсэнийг тань хадгалж, дараа нь яг тэндээс нь үргэлжлүүлнэ.</div>
+                </div>
+            </li>
+        </ul>
+
+        <button type="button" data-features-close
+                class="mt-7 w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] py-3 font-semibold text-white transition">
+            Ойлголоо
+        </button>
+    </div>
+</div>
+
+<script>
+(function () {
+    // Агуулгыг өөрчилбөл version-ийг нэмээрэй — тэгвэл бүх хэрэглэгчид дахин харагдана.
+    const SEEN_KEY = 'features_popup_seen_v1';
+    const modal = document.getElementById('features-modal');
+    const card = document.getElementById('features-card');
+    if (!modal || !card) return;
+
+    function openModal() {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+        requestAnimationFrame(() => card.classList.remove('opacity-0', 'scale-95'));
+    }
+
+    function closeModal() {
+        card.classList.add('opacity-0', 'scale-95');
+        document.body.style.overflow = '';
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }, 200);
+        try { localStorage.setItem(SEEN_KEY, '1'); } catch (e) {}
+    }
+
+    modal.querySelectorAll('[data-features-close]').forEach(el => el.addEventListener('click', closeModal));
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+    });
+
+    const openBtn = document.getElementById('features-open');
+    if (openBtn) openBtn.addEventListener('click', openModal);
+
+    // Анх орж буй хэрэглэгчид нэг удаа автоматаар харуулна.
+    let seen = false;
+    try { seen = localStorage.getItem(SEEN_KEY) === '1'; } catch (e) {}
+    if (!seen) setTimeout(openModal, 800);
+})();
+</script>
 
 
 <!-- ===================== SCRIPTS ===================== -->
