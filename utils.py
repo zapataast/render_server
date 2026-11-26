@@ -454,7 +454,7 @@ def send_video_info_to_mongodb(metadata,videos_collection):
 
 def get_video_duration(file_path):
     command = [
-        "ffprobe",
+        os.getenv("FFPROBE_BIN", "ffprobe"),
         "-v",
         "quiet",
         "-print_format",
@@ -463,14 +463,20 @@ def get_video_duration(file_path):
         file_path,
     ]
 
-    result = subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-
-    data = json.loads(result.stdout)
+    # cPanel shared host дээр ffprobe ихэвчлэн суугаагүй байдаг.
+    # Тэр үед upload-ийг унагаахгүй, duration=None буцаана.
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=60,
+        )
+        data = json.loads(result.stdout)
+    except (subprocess.SubprocessError, OSError, ValueError) as exc:
+        print("ffprobe error:", exc)
+        return None
 
     duration = data.get(
         "format",

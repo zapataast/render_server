@@ -7,3 +7,6 @@ venv/
 *.session-journal
 Working.mkv
 .DS_Store
+tmp/
+stderr.log
+flask_session/

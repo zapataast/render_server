@@ -63,7 +63,11 @@ app.config["SESSION_MONGODB_COLLECT"] = "flask_sessions"
 app.config["SESSION_PERMANENT"] = True
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=2)
 
-app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY",'1234qwerasdfzxcvuiop')
+app.config["SECRET_KEY"] = (
+    os.getenv("FLASK_SECRET_KEY")
+    or os.getenv("SECRET_KEY")
+    or '1234qwerasdfzxcvuiop'
+)
 
 app.config.update(
     SESSION_COOKIE_SECURE=True,
@@ -423,7 +427,7 @@ def get_random_video_screenshot(video_path, duration):
     try:
         result = subprocess.run(
             [
-                "ffmpeg",
+                os.getenv("FFMPEG_BIN", "ffmpeg"),
                 "-hide_banner",
                 "-loglevel", "error",
                 "-ss", str(second),
